@@ -5,6 +5,8 @@ name: CI/CD
 on:
   push:
     branches: [main]
+    # Un cambio que solo toca documentación no redespliega.
+    paths-ignore: ["docs/**", "README.md"]
   pull_request:
   workflow_dispatch:
 
