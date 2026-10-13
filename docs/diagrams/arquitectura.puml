@@ -6,22 +6,22 @@ left to right direction
 actor "Administrador" as admin
 actor "Estudiante" as student
 
-rectangle "Navegador" as browser #F8FAFC {
+rectangle "Navegador" as browser {
   component "Interfaz Next.js 16\n(React 19, shadcn/ui,\nPhosphor, TanStack Query)" as ui
 }
 
-rectangle "Servidor Next.js (BFF)" as bff #EFF6FF {
+rectangle "Servidor Next.js (BFF)" as bff {
   component "proxy.ts\nredirecciones por rol" as proxy
   component "Route Handlers\n/api/auth/* · /api/backend/*\n(cookie httpOnly con JWT)" as handlers
 }
 
-rectangle "API FastAPI" as api #EFF6FF {
+rectangle "API FastAPI" as api {
   component "Routers /api/v1\nauth · programas · estudiantes\nasistencia · importación · panel" as routers
   component "Servicios\nreglas de asistencia,\nimportación Excel (openpyxl)" as services
   component "SQLAlchemy 2 + Alembic" as orm
 }
 
-database "PostgreSQL 16" as db
+database "PostgreSQL 18" as db
 
 admin --> ui
 student --> ui

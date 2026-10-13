@@ -1,62 +1,59 @@
-' Tema visual compartido: azul / negro / blanco
+' Tema formal: blanco y negro, sin colores decorativos
 skinparam backgroundColor #FFFFFF
-skinparam defaultFontName "Helvetica"
+skinparam monochrome true
+skinparam defaultFontName "Arial"
 skinparam defaultFontSize 12
 skinparam shadowing false
-skinparam roundCorner 10
-skinparam ArrowColor #1D4ED8
-skinparam ArrowThickness 1.3
-skinparam titleFontSize 16
-skinparam titleFontColor #0B1220
+skinparam roundCorner 4
+skinparam ArrowColor #000000
+skinparam ArrowThickness 1
+skinparam titleFontSize 15
+skinparam titleFontStyle bold
 skinparam class {
   BackgroundColor #FFFFFF
-  BorderColor #0B1220
-  HeaderBackgroundColor #1D4ED8
-  FontColor #FFFFFF
-  AttributeFontColor #0B1220
+  BorderColor #000000
+  HeaderBackgroundColor #E6E6E6
+  FontColor #000000
+  FontStyle bold
+  AttributeFontColor #000000
   AttributeFontSize 11
-  StereotypeFontColor #DBEAFE
 }
 skinparam entity {
   BackgroundColor #FFFFFF
-  BorderColor #0B1220
-  FontColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
 }
-skinparam classFontColor #FFFFFF
-skinparam classFontStyle bold
 skinparam component {
   BackgroundColor #FFFFFF
-  BorderColor #1D4ED8
-  FontColor #0B1220
+  BorderColor #000000
+  FontColor #000000
 }
 skinparam database {
-  BackgroundColor #DBEAFE
-  BorderColor #1D4ED8
-  FontColor #0B1220
+  BackgroundColor #F2F2F2
+  BorderColor #000000
+  FontColor #000000
 }
 skinparam actor {
-  BackgroundColor #1D4ED8
-  BorderColor #0B1220
+  BackgroundColor #FFFFFF
+  BorderColor #000000
 }
 skinparam usecase {
-  BackgroundColor #EFF6FF
-  BorderColor #1D4ED8
-  FontColor #0B1220
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
 }
 skinparam rectangle {
-  BorderColor #0B1220
+  BackgroundColor #FFFFFF
+  BorderColor #000000
 }
 skinparam sequence {
   ParticipantBackgroundColor #FFFFFF
-  ParticipantBorderColor #1D4ED8
-  ParticipantFontColor #0B1220
-  LifeLineBorderColor #94A3B8
-  ActorBackgroundColor #1D4ED8
-  ActorBorderColor #0B1220
-  GroupBackgroundColor #EFF6FF
-  GroupBorderColor #1D4ED8
+  ParticipantBorderColor #000000
+  LifeLineBorderColor #808080
+  GroupBackgroundColor #F2F2F2
+  GroupBorderColor #000000
 }
 skinparam note {
-  BackgroundColor #EFF6FF
-  BorderColor #1D4ED8
+  BackgroundColor #FFFFFF
+  BorderColor #000000
 }
