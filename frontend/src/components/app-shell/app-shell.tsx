@@ -8,14 +8,16 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 export function AppShell({
   role,
+  initialCourseId,
   children,
 }: {
   role: "admin" | "student"
+  initialCourseId?: string
   children: React.ReactNode
 }) {
   const nav = role === "admin" ? ADMIN_NAV : STUDENT_NAV
   return (
-    <CourseProvider>
+    <CourseProvider initialCourseId={initialCourseId}>
       <SidebarProvider>
         <AppSidebar nav={nav} showCourse={role === "admin"} />
         <SidebarInset className="bg-background">

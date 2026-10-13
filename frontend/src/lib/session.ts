@@ -2,6 +2,8 @@
 
 export const TOKEN_COOKIE = "presencia_token"
 export const MUST_CHANGE_COOKIE = "presencia_mcp"
+/** Programa activo del administrador (lo leen el cliente y la precarga del servidor). */
+export const COURSE_COOKIE = "presencia_course"
 
 export const API_URL = process.env.API_URL ?? "http://localhost:8000"
 

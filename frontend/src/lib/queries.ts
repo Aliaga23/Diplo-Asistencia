@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/lib/api"
+import { qk } from "@/lib/query-keys"
 import type {
   AttendanceMatrix,
   AttendanceRecord,
@@ -17,17 +18,7 @@ import type {
   User,
 } from "@/lib/types"
 
-export const qk = {
-  me: ["me"] as const,
-  courses: ["courses"] as const,
-  dashboard: (courseId?: string) => ["dashboard", courseId] as const,
-  sessions: (courseId?: string) => ["sessions", courseId] as const,
-  matrix: (sessionId: string) => ["matrix", sessionId] as const,
-  students: (courseId?: string, q?: string) => ["students", courseId, q] as const,
-  studentAttendance: (id: string, courseId?: string) => ["student-attendance", id, courseId] as const,
-  imports: ["imports"] as const,
-  myAttendance: ["my-attendance"] as const,
-}
+export { qk }
 
 export function useMe() {
   return useQuery({ queryKey: qk.me, queryFn: () => api.get<User>("/auth/me") })
@@ -76,7 +67,7 @@ export function useStudents(courseId?: string, q?: string) {
 
 export function useStudent(studentId: string, courseId?: string) {
   return useQuery({
-    queryKey: ["student", studentId, courseId] as const,
+    queryKey: qk.student(studentId, courseId),
     queryFn: () =>
       api.get<StudentSummary>(`/students/${studentId}${courseId ? `?course_id=${courseId}` : ""}`),
   })

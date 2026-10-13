@@ -3,9 +3,8 @@
 import { createContext, useContext, useMemo, useState } from "react"
 
 import { useCourses } from "@/lib/queries"
+import { COURSE_COOKIE } from "@/lib/session"
 import type { Course } from "@/lib/types"
-
-const STORAGE_KEY = "presencia.course"
 
 interface CourseCtx {
   course: Course | undefined
@@ -16,25 +15,23 @@ interface CourseCtx {
 
 const Ctx = createContext<CourseCtx | null>(null)
 
-export function CourseProvider({ children }: { children: React.ReactNode }) {
+/**
+ * Programa activo. Se guarda en una cookie para que el servidor precargue los datos del
+ * mismo programa; el valor inicial llega del servidor y así no hay desajuste al hidratar.
+ */
+export function CourseProvider({
+  initialCourseId,
+  children,
+}: {
+  initialCourseId?: string
+  children: React.ReactNode
+}) {
   const { data: courses = [], isLoading } = useCourses()
-  // Lectura perezosa: los cursos llegan por React Query (no en SSR), así que no hay desajuste de hidratación.
-  const [courseId, setCourseIdState] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null
-    try {
-      return window.localStorage.getItem(STORAGE_KEY)
-    } catch {
-      return null
-    }
-  })
+  const [courseId, setCourseIdState] = useState<string | undefined>(initialCourseId)
 
   const setCourseId = (id: string) => {
     setCourseIdState(id)
-    try {
-      window.localStorage.setItem(STORAGE_KEY, id)
-    } catch {
-      /* almacenamiento no disponible */
-    }
+    document.cookie = `${COURSE_COOKIE}=${id}; path=/; max-age=31536000; samesite=lax`
   }
 
   const value = useMemo<CourseCtx>(() => {

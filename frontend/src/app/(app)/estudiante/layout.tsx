@@ -1,12 +1,12 @@
 import { Suspense } from "react"
 
-import { AppShell } from "@/components/app-shell/app-shell"
+import { ShellData } from "@/components/app-shell/shell-data"
 import { ShellSkeleton } from "@/components/app-shell/shell-skeleton"
 
-export default function StudentLayout({ children }: LayoutProps<"/estudiante">) {
+export default function Layout({ children }: LayoutProps<"/estudiante">) {
   return (
     <Suspense fallback={<ShellSkeleton />}>
-      <AppShell role="student">{children}</AppShell>
+      <ShellData role="student">{children}</ShellData>
     </Suspense>
   )
 }
