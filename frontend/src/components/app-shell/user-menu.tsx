@@ -18,6 +18,7 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui
 import { Skeleton } from "@/components/ui/skeleton"
 import { initials } from "@/lib/format"
 import { useMe } from "@/lib/queries"
+import { resilientFetch } from "@/lib/resilient-fetch"
 
 export function UserMenu() {
   const { data: me } = useMe()
@@ -25,7 +26,7 @@ export function UserMenu() {
   const qc = useQueryClient()
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" })
+    await resilientFetch("/api/auth/logout", { method: "POST" }).catch(() => undefined)
     qc.clear()
     router.replace("/login")
   }

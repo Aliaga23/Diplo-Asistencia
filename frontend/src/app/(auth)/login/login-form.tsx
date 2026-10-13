@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/input-group"
 import { useIntro } from "@/components/brand/login-intro"
 import { Spinner } from "@/components/ui/spinner"
+import { MENSAJE_SIN_SERVIDOR, errorMessage, resilientFetch } from "@/lib/resilient-fetch"
 import type { User } from "@/lib/types"
 
 const schema = z.object({
@@ -52,16 +53,22 @@ export function LoginForm() {
 
   async function onSubmit(values: Values) {
     setError(null)
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      setError(typeof data.detail === "string" ? data.detail : "No se pudo iniciar sesión")
+    let res: Response
+    try {
+      res = await resilientFetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      })
+    } catch {
+      setError(MENSAJE_SIN_SERVIDOR)
       return
     }
+    if (!res.ok) {
+      setError(await errorMessage(res, "No se pudo iniciar sesión"))
+      return
+    }
+    const data = await res.json()
     const user = data.user as User
     if (user.must_change_password) {
       router.replace("/cambiar-contrasena")

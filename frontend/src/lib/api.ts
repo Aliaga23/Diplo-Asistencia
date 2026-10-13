@@ -13,6 +13,8 @@ export class ApiError extends Error {
   }
 }
 
+import { MENSAJE_SIN_SERVIDOR, resilientFetch } from "@/lib/resilient-fetch"
+
 type Json = Record<string, unknown> | unknown[]
 
 function detailToMessage(detail: unknown): string {
@@ -26,7 +28,9 @@ function detailToMessage(detail: unknown): string {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`/api/backend${path}`, {
+  let res: Response
+  try {
+    res = await resilientFetch(`/api/backend${path}`, {
     ...init,
     headers: {
       ...(init.body && !(init.body instanceof FormData)
@@ -35,7 +39,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       ...init.headers,
     },
     cache: "no-store",
-  })
+    })
+  } catch {
+    throw new ApiError(0, MENSAJE_SIN_SERVIDOR)
+  }
   if (res.status === 401 && typeof window !== "undefined") {
     // Recarga completa intencional: descarta la caché del cliente al expirar la sesión.
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
@@ -43,12 +50,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(401, "Tu sesión expiró")
   }
   if (!res.ok) {
-    let message = `Error ${res.status}`
+    let message = res.status >= 500 ? MENSAJE_SIN_SERVIDOR : `Error ${res.status}`
     try {
       const body = await res.json()
       message = detailToMessage(body.detail)
     } catch {
-      /* respuesta sin JSON */
+      /* página de error del proxy (HTML): se mantiene el mensaje por estado */
     }
     throw new ApiError(res.status, message)
   }
@@ -73,7 +80,7 @@ export const api = {
 }
 
 export async function downloadFile(path: string, fallbackName: string) {
-  const res = await fetch(`/api/backend${path}`, { cache: "no-store" })
+  const res = await resilientFetch(`/api/backend${path}`, { cache: "no-store" })
   if (!res.ok) throw new ApiError(res.status, "No se pudo descargar el archivo")
   const blob = await res.blob()
   const disposition = res.headers.get("Content-Disposition") ?? ""

@@ -11,6 +11,7 @@ import type { NavItem } from "@/components/app-shell/nav"
 import { Modal, ModalBody, ModalFooter, ModalHeader } from "@/components/common/modal"
 import { Button } from "@/components/ui/button"
 import { useMe } from "@/lib/queries"
+import { resilientFetch } from "@/lib/resilient-fetch"
 import { cn } from "@/lib/utils"
 
 /** Navegación para móvil en un modal centrado (sin paneles laterales). */
@@ -22,7 +23,7 @@ export function MobileNav({ nav }: { nav: { label: string; items: NavItem[] }[] 
   const { data: me } = useMe()
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" })
+    await resilientFetch("/api/auth/logout", { method: "POST" }).catch(() => undefined)
     qc.clear()
     router.replace("/login")
   }

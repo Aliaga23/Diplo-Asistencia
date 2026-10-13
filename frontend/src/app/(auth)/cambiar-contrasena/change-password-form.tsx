@@ -16,6 +16,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { useMe } from "@/lib/queries"
+import { MENSAJE_SIN_SERVIDOR, errorMessage, resilientFetch } from "@/lib/resilient-fetch"
 
 const schema = z
   .object({
@@ -39,14 +40,19 @@ export function ChangePasswordForm() {
 
   async function onSubmit(v: Values) {
     setError(null)
-    const res = await fetch("/api/auth/change-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ current_password: v.current_password, new_password: v.new_password }),
-    })
+    let res: Response
+    try {
+      res = await resilientFetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_password: v.current_password, new_password: v.new_password }),
+      })
+    } catch {
+      setError(MENSAJE_SIN_SERVIDOR)
+      return
+    }
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      setError(typeof data.detail === "string" ? data.detail : "No se pudo cambiar la contraseña")
+      setError(await errorMessage(res, "No se pudo cambiar la contraseña"))
       return
     }
     toast.success("Contraseña actualizada")
