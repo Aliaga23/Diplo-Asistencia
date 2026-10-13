@@ -1,0 +1,166 @@
+name: Desplegar
+
+# Dos entradas al mismo camino:
+#  - workflow_call: la invoca Release tras publicar las imágenes;
+#  - workflow_dispatch: despliegue manual de CUALQUIER tag. Es la vía de vuelta atrás:
+#    se escribe el tag anterior (sha-…) y listo. Las migraciones solo van hacia delante.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Tag de las imágenes en GHCR (sha-a1b2c3d4e5f6)
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag de las imágenes en GHCR (sha-a1b2c3d4e5f6 o latest)
+        required: true
+        type: string
+
+concurrency:
+  # Nunca dos despliegues a la vez sobre el mismo servidor.
+  group: despliegue-arturo-diplo
+  cancel-in-progress: false
+
+jobs:
+  desplegar:
+    name: Desplegar en «arturo»
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: arturo
+      url: https://${{ vars.DIPLO_DOMINIO || 'diplo.jorgearturo.net' }}
+    permissions:
+      contents: read
+      # El servidor baja las imágenes privadas de GHCR con este mismo token (efímero).
+      packages: read
+    env:
+      APP: /opt/diplo-asistencia
+      DOMINIO: ${{ vars.DIPLO_DOMINIO || 'diplo.jorgearturo.net' }}
+    steps:
+      - name: Comprobar que el despliegue está habilitado
+        run: |
+          if [ "${{ vars.DEPLOY_ENABLED }}" != "true" ]; then
+            echo "::error::La variable DEPLOY_ENABLED no es 'true'. Ver la sección Despliegue del README."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - name: Preparar la clave SSH
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/despliegue
+          chmod 600 ~/.ssh/despliegue
+          # La clave de host llega por secreto en vez de aceptarse a ciegas.
+          printf '%s\n' "${{ secrets.VPS_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Subir la configuración
+        env:
+          # Host y usuario no son secretos: como secreto, GitHub tacharía «arturo» en cada
+          # línea del registro, dominio incluido.
+          VPS: ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}
+        run: |
+          set -euo pipefail
+          tar -C deploy/arturo -czf - compose.yaml | ssh -i ~/.ssh/despliegue -o BatchMode=yes "$VPS" \
+            "rm -rf '$APP/.nuevo' && mkdir -p '$APP/.nuevo' && tar -xzf - -C '$APP/.nuevo'"
+
+      - name: Desplegar
+        env:
+          VPS: ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}
+          TAG: ${{ inputs.tag }}
+          REG_USER: ${{ github.actor }}
+          REG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Heredoc ENTRECOMILLADO: las variables se expanden en el servidor, no aquí.
+          ssh -i ~/.ssh/despliegue -o BatchMode=yes "$VPS" \
+            "APP='$APP' IMAGE_TAG='$TAG' REG_USER='$REG_USER' REG_TOKEN='$REG_TOKEN' bash -s" <<'EOSSH'
+          set -euo pipefail
+          cd "$APP" || { echo "::error::Falta $APP. Ver la sección Despliegue del README."; exit 1; }
+          [ -f .env ] || { echo "::error::Falta .env: ejecutar deploy/arturo/preparar.sh."; exit 1; }
+
+          COMPOSE="docker compose --project-directory $APP -f $APP/compose.yaml --env-file $APP/.env"
+          imagen_de() {
+            local id
+            id=$($COMPOSE ps -q "$1" 2>/dev/null | head -n1)
+            [ -n "$id" ] && docker inspect "$id" --format '{{.Config.Image}}' | sed 's/.*://'
+          }
+          poner_tag() { sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=$1|" .env; }
+
+          ANTERIOR=$( [ -f compose.yaml ] && imagen_de backend || true )
+          echo "En curso: ${ANTERIOR:-ninguna} → nueva: ${IMAGE_TAG}"
+
+          # La configuración nueva se valida ANTES de reemplazar la que funciona.
+          poner_tag "$IMAGE_TAG"
+          if ! docker compose --project-directory "$APP" -f "$APP/.nuevo/compose.yaml" \
+               --env-file "$APP/.env" config -q; then
+            echo "::error::La configuración nueva no es válida: no se tocó nada."
+            [ -n "$ANTERIOR" ] && poner_tag "$ANTERIOR"
+            exit 1
+          fi
+          rm -rf .anterior && mkdir .anterior
+          [ -f compose.yaml ] && cp -a compose.yaml .anterior/
+          cp -a .nuevo/compose.yaml . && rm -rf .nuevo
+          chmod 0644 compose.yaml
+
+          # Credencial efímera para el pull; no queda ningún token guardado en el servidor.
+          echo "$REG_TOKEN" | docker login ghcr.io -u "$REG_USER" --password-stdin >/dev/null
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+
+          # GHCR publica el manifiesto antes que todas las capas: el primer pull puede
+          # fallar con "not found". Es transitorio.
+          for intento in 1 2 3 4 5; do
+            if $COMPOSE pull -q; then break; fi
+            [ "$intento" = 5 ] && { echo "::error::No se pudieron bajar las imágenes."; exit 1; }
+            sleep $((intento * 10))
+          done
+
+          volver_atras() {
+            echo "::error::$1"
+            $COMPOSE logs --tail 80 backend frontend || true
+            if [ -n "$ANTERIOR" ]; then
+              echo "Volviendo a ${ANTERIOR}…"
+              cp -a .anterior/compose.yaml . 2>/dev/null || true
+              poner_tag "$ANTERIOR"
+              $COMPOSE up -d --remove-orphans || true
+            fi
+            exit 1
+          }
+
+          # El backend aplica las migraciones al arrancar; up --wait espera los healthchecks.
+          $COMPOSE up -d --remove-orphans --wait --wait-timeout 180 \
+            || volver_atras "Los servicios no quedaron sanos (¿migración fallida?)."
+
+          # Lo que CORRE es lo que se pidió, no lo que se creyó desplegar.
+          for servicio in backend frontend; do
+            corriendo=$(imagen_de "$servicio")
+            [ "$corriendo" = "$IMAGE_TAG" ] || volver_atras "$servicio corre '$corriendo', se pidió '$IMAGE_TAG'."
+            echo "  $servicio → $corriendo"
+          done
+
+          docker image prune -f --filter 'until=168h' >/dev/null 2>&1 || true
+          echo "Despliegue correcto: ${IMAGE_TAG}"
+          EOSSH
+
+      - name: Comprobar desde fuera (Cloudflare → Traefik → frontend)
+        run: |
+          # Aviso y no error: el registro DNS puede no existir todavía.
+          if curl -fsS --max-time 15 -o /dev/null "https://${DOMINIO}/login"; then
+            echo "https://${DOMINIO} responde"
+          else
+            echo "::warning::https://${DOMINIO} no responde todavía (¿falta el DNS en Cloudflare?)."
+          fi
+
+      - name: Resumen
+        if: always()
+        run: |
+          {
+            echo "### Despliegue en «arturo»"
+            echo ""
+            echo "- Tag: \`${{ inputs.tag }}\`"
+            echo "- URL: https://${DOMINIO}"
+            echo "- Resultado: ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"

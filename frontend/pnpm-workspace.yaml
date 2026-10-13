@@ -1,0 +1,7 @@
+# Scripts de instalación: ninguno es necesario (sharp y unrs-resolver traen binarios
+# precompilados). pnpm 12 exige declararlo explícitamente.
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
+minimumReleaseAgeExclude:
+  - zod@4.6.7

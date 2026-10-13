@@ -1,0 +1,109 @@
+name: CI
+
+# En ramas y pull requests corre suelto. En main lo invoca Release (workflow_call), por eso
+# el disparador de push ignora main: así no corre dos veces ni se cancela a sí mismo.
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  backend:
+    name: Backend (lint, formato, pruebas)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.18"
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest -q
+
+  migraciones:
+    name: Migraciones contra PostgreSQL 18
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: asistencia
+          POSTGRES_PASSWORD: asistencia
+          POSTGRES_DB: asistencia
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U asistencia -d asistencia"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://asistencia:asistencia@localhost:5432/asistencia
+      JWT_SECRET: ci-secreto-de-prueba-0123456789-abcdefghij
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.18"
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Aplicar migraciones
+        run: uv run alembic upgrade head
+      - name: El modelo coincide con las migraciones
+        run: uv run alembic check
+      - name: Datos de demostración
+        run: uv run python -m app.seed --demo
+      - name: Las migraciones se pueden revertir
+        run: uv run alembic downgrade base
+
+  frontend:
+    name: Frontend (lint, tipos, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.node-version
+      - run: npm install -g pnpm@12.11.2
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm build
+
+  # En ramas solo comprueba que construyen; en main las construye y publica Release.
+  imagenes:
+    name: Imágenes Docker (${{ matrix.servicio }})
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        servicio: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.servicio }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.servicio }}

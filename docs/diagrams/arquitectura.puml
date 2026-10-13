@@ -1,0 +1,34 @@
+@startuml arquitectura
+!include _tema.iuml
+title Arquitectura de Presencia
+left to right direction
+
+actor "Administrador" as admin
+actor "Estudiante" as student
+
+rectangle "Navegador" as browser #F8FAFC {
+  component "Interfaz Next.js 16\n(React 19, shadcn/ui,\nPhosphor, TanStack Query)" as ui
+}
+
+rectangle "Servidor Next.js (BFF)" as bff #EFF6FF {
+  component "proxy.ts\nredirecciones por rol" as proxy
+  component "Route Handlers\n/api/auth/* · /api/backend/*\n(cookie httpOnly con JWT)" as handlers
+}
+
+rectangle "API FastAPI" as api #EFF6FF {
+  component "Routers /api/v1\nauth · programas · estudiantes\nasistencia · importación · panel" as routers
+  component "Servicios\nreglas de asistencia,\nimportación Excel (openpyxl)" as services
+  component "SQLAlchemy 2 + Alembic" as orm
+}
+
+database "PostgreSQL 16" as db
+
+admin --> ui
+student --> ui
+ui --> proxy : navegación
+ui --> handlers : fetch /api/*
+handlers --> routers : REST + Bearer JWT
+routers --> services
+services --> orm
+orm --> db : SQL
+@enduml

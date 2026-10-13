@@ -1,0 +1,34 @@
+@startuml secuencia-importacion
+!include _tema.iuml
+title Secuencia: importación de estudiantes desde Excel
+autonumber
+
+actor Administrador as A
+participant "Next.js\n(modal de importación)" as N
+participant "FastAPI\n/imports/students" as F
+participant "Servicio de\nimportación" as S
+database PostgreSQL as DB
+
+A -> N : Descarga el modelo
+N -> F : GET /imports/templates/students
+F --> N : modelo_estudiantes.xlsx (datos + instrucciones)
+A -> N : Sube el archivo completado
+N -> F : POST /imports/students?course_id (multipart)
+F -> S : import_students(archivo, programa)
+S -> S : Valida encabezados (registro y nombre obligatorios)
+loop por cada fila
+  alt fila válida
+    S -> DB : busca el usuario por registro
+    opt no existe
+      S -> DB : INSERT users + students (contraseña común)
+    end
+    S -> DB : INSERT enrollments (si no existe)
+  else fila con error
+    S -> S : agrega {fila, mensaje}
+  end
+end
+S -> DB : INSERT import_batches (auditoría)
+S --> F : resumen del lote
+F --> N : {rows_ok, rows_failed, errors}
+N --> A : Resultado fila por fila
+@enduml

@@ -1,0 +1,36 @@
+@startuml casos-uso
+!include _tema.iuml
+title Casos de uso
+left to right direction
+
+actor "Administrador" as A
+actor "Estudiante" as E
+
+rectangle "Presencia" {
+  usecase "Iniciar sesión con\nnúmero de registro" as UC1
+  usecase "Gestionar programas" as UC2
+  usecase "Importar estudiantes\ndesde Excel" as UC3
+  usecase "Importar horarios y\nfechas desde Excel" as UC4
+  usecase "Descargar modelo\nde importación" as UC5
+  usecase "Ver estudiantes y\nsu asistencia" as UC6
+  usecase "Modificar asistencia\n(cualquier fecha)" as UC7
+  usecase "Exportar reporte Excel" as UC8
+  usecase "Registrar mi asistencia\n(solo hoy)" as UC9
+  usecase "Anular mi registro\n(solo hoy)" as UC10
+  usecase "Consultar mi historial" as UC11
+}
+
+A --> UC1
+A --> UC2
+A --> UC3
+A --> UC4
+A --> UC6
+A --> UC7
+A --> UC8
+UC3 ..> UC5 : <<include>>
+UC4 ..> UC5 : <<include>>
+E --> UC1
+E --> UC9
+E --> UC10
+E --> UC11
+@enduml

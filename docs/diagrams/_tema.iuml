@@ -1,0 +1,62 @@
+' Tema visual compartido: azul / negro / blanco
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Helvetica"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam ArrowColor #1D4ED8
+skinparam ArrowThickness 1.3
+skinparam titleFontSize 16
+skinparam titleFontColor #0B1220
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #0B1220
+  HeaderBackgroundColor #1D4ED8
+  FontColor #FFFFFF
+  AttributeFontColor #0B1220
+  AttributeFontSize 11
+  StereotypeFontColor #DBEAFE
+}
+skinparam entity {
+  BackgroundColor #FFFFFF
+  BorderColor #0B1220
+  FontColor #FFFFFF
+}
+skinparam classFontColor #FFFFFF
+skinparam classFontStyle bold
+skinparam component {
+  BackgroundColor #FFFFFF
+  BorderColor #1D4ED8
+  FontColor #0B1220
+}
+skinparam database {
+  BackgroundColor #DBEAFE
+  BorderColor #1D4ED8
+  FontColor #0B1220
+}
+skinparam actor {
+  BackgroundColor #1D4ED8
+  BorderColor #0B1220
+}
+skinparam usecase {
+  BackgroundColor #EFF6FF
+  BorderColor #1D4ED8
+  FontColor #0B1220
+}
+skinparam rectangle {
+  BorderColor #0B1220
+}
+skinparam sequence {
+  ParticipantBackgroundColor #FFFFFF
+  ParticipantBorderColor #1D4ED8
+  ParticipantFontColor #0B1220
+  LifeLineBorderColor #94A3B8
+  ActorBackgroundColor #1D4ED8
+  ActorBorderColor #0B1220
+  GroupBackgroundColor #EFF6FF
+  GroupBorderColor #1D4ED8
+}
+skinparam note {
+  BackgroundColor #EFF6FF
+  BorderColor #1D4ED8
+}
