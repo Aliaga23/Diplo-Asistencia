@@ -12,8 +12,9 @@ programas académicos. Desarrollada por el **grupo GPT-6 AURA**.
   registro.
 - Importación de **estudiantes** y de **horarios y fechas** desde Excel, con modelo
   descargable y validación fila por fila.
-- El administrador ve a todos los estudiantes y **modifica cualquier asistencia**, de
-  cualquier fecha, con notas.
+- El administrador ve a todos los estudiantes, cada uno con su propia ficha, y **modifica la
+  asistencia** de las sesiones dictadas y del día, con notas. Las sesiones futuras son de solo
+  lectura.
 - Cada estudiante **registra su asistencia del día** con un toque; solo puede registrar o
   anular la asistencia del día actual (zona horaria America/La_Paz, calculada en el servidor).
 - Varios **programas** con sus propios estudiantes, horarios e indicadores.
@@ -84,7 +85,7 @@ Todas las cuentas nuevas usan la contraseña común `admin1234!` (variable `DEFA
 ## Calidad
 
 ```bash
-cd backend && uv run ruff check . && uv run pytest     # 25 pruebas
+cd backend && uv run ruff check . && uv run pytest     # 26 pruebas
 cd frontend && pnpm lint && pnpm build
 ```
 

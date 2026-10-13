@@ -1,10 +1,10 @@
 "use client"
 
 import { CaretRightIcon, FileArrowUpIcon, MagnifyingGlassIcon, UsersThreeIcon } from "@phosphor-icons/react"
+import { useRouter } from "next/navigation"
 import { useDeferredValue, useMemo, useState } from "react"
 
 import { NewStudentDialog } from "@/app/(app)/admin/estudiantes/new-student-dialog"
-import { StudentModal } from "@/app/(app)/admin/estudiantes/student-modal"
 import { useCourse } from "@/components/app-shell/course-context"
 import { PageHeader } from "@/components/common/page-header"
 import { ImportDialog } from "@/components/imports/import-dialog"
@@ -35,7 +35,7 @@ export default function StudentsPage() {
   const [q, setQ] = useState("")
   const deferred = useDeferredValue(q)
   const [segment, setSegment] = useState<Segment>("all")
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const router = useRouter()
   const { data, isLoading, isFetching } = useStudents(course?.id, deferred.trim() || undefined)
 
   const rows = useMemo(() => {
@@ -45,14 +45,12 @@ export default function StudentsPage() {
     return list
   }, [data, segment])
 
-  const selected = (data ?? []).find((s) => s.id === selectedId) ?? null
-
   return (
     <>
       <PageHeader
         eyebrow={course ? `${course.code} · ${course.period}` : undefined}
         title="Estudiantes"
-        description="Estudiantes inscritos en el programa activo con su asistencia acumulada. Selecciona uno para ver y modificar su historial."
+        description="Estudiantes inscritos en el programa activo con su asistencia acumulada. Selecciona uno para ver su ficha y modificar su historial."
         actions={
           <>
             <ImportDialog
@@ -133,7 +131,11 @@ export default function StudentsPage() {
             </TableHeader>
             <TableBody>
               {rows.map((s) => (
-                <TableRow key={s.id} className="cursor-pointer" onClick={() => setSelectedId(s.id)}>
+                <TableRow
+                  key={s.id}
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/admin/estudiantes/${s.id}`)}
+                >
                   <TableCell className="py-3 pl-4">
                     <div className="flex items-center gap-3">
                       <Avatar className="size-9">
@@ -182,7 +184,6 @@ export default function StudentsPage() {
         )}
       </Card>
 
-      <StudentModal student={selected} onOpenChange={(o) => !o && setSelectedId(null)} />
     </>
   )
 }

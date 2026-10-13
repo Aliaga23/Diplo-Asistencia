@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation"
 import { Fragment } from "react"
 
+import { useCrumbLabels } from "@/components/app-shell/breadcrumb-store"
 import { LiveClock } from "@/components/app-shell/live-clock"
 import { MobileNav } from "@/components/app-shell/mobile-nav"
 import type { NavItem } from "@/components/app-shell/nav"
@@ -31,6 +32,7 @@ const LABELS: Record<string, string> = {
 export function AppHeader({ nav }: { nav: { label: string; items: NavItem[] }[] }) {
   const pathname = usePathname()
   const parts = pathname.split("/").filter(Boolean)
+  const crumbs = useCrumbLabels()
 
   return (
     <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b bg-background/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70">
@@ -42,7 +44,7 @@ export function AppHeader({ nav }: { nav: { label: string; items: NavItem[] }[] 
           {parts.map((p, i) => {
             const href = "/" + parts.slice(0, i + 1).join("/")
             const last = i === parts.length - 1
-            const label = LABELS[p] ?? "Detalle"
+            const label = crumbs.get(href) ?? LABELS[p] ?? "Detalle"
             return (
               <Fragment key={href}>
                 {i > 0 && <BreadcrumbSeparator />}

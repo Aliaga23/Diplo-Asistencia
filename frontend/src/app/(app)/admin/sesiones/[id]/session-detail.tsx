@@ -14,9 +14,11 @@ import { useParams } from "next/navigation"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
+import { useCrumb } from "@/components/app-shell/breadcrumb-store"
 import { STATUS_META } from "@/components/attendance/status-badge"
 import { StatusSelect } from "@/components/attendance/status-select"
 import { PageHeader } from "@/components/common/page-header"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -39,6 +41,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   SOURCE_LABEL,
   STATUS_LABEL,
+  fmtDay,
   fmtLongDay,
   fmtRange,
   fmtStamp,
@@ -128,6 +131,7 @@ export function SessionDetail() {
   const [filter, setFilter] = useState<Filter>("all")
 
   const session = data?.session
+  useCrumb(`/admin/sesiones/${id}`, session ? fmtDay(session.session_date) : undefined)
   const isFuture = session ? session.session_date > todayISO() : false
   const open = session ? session.is_today || isFuture : false
 
@@ -222,7 +226,18 @@ export function SessionDetail() {
             }
           />
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {isFuture && (
+            <Alert className="mb-4">
+              <CalendarBlankIcon />
+              <AlertTitle>Esta sesión aún no se dicta</AlertTitle>
+              <AlertDescription>
+                La asistencia se podrá registrar o modificar a partir del {fmtLongDay(session.session_date)}.
+                Mientras tanto, la lista es de solo lectura.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className={cn("grid grid-cols-2 gap-3 sm:grid-cols-5", isFuture && "hidden")}>
             {stats.map((s) => (
               <button
                 key={s.key}
@@ -258,9 +273,9 @@ export function SessionDetail() {
                 type="single"
                 variant="outline"
                 size="sm"
+                className={cn("flex-wrap", isFuture && "hidden")}
                 value={filter}
                 onValueChange={(v) => setFilter((v || "all") as Filter)}
-                className="flex-wrap"
               >
                 <ToggleGroupItem value="all">Todos</ToggleGroupItem>
                 <ToggleGroupItem value="present">Presentes</ToggleGroupItem>
@@ -294,7 +309,12 @@ export function SessionDetail() {
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <div className="truncate font-medium">{r.full_name}</div>
+                          <Link
+                            href={`/admin/estudiantes/${r.student_id}`}
+                            className="block truncate font-medium hover:text-primary hover:underline"
+                          >
+                            {r.full_name}
+                          </Link>
                           <div className="truncate text-xs text-muted-foreground">{r.email ?? "—"}</div>
                         </div>
                       </div>
@@ -312,17 +332,27 @@ export function SessionDetail() {
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <NoteEditor row={r} sessionId={id} />
+                      {isFuture ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        <NoteEditor row={r} sessionId={id} />
+                      )}
                     </TableCell>
                     <TableCell className="pr-4 text-right">
-                      <StatusSelect
-                        className="ml-auto"
-                        value={r.status}
-                        recorded={r.recorded}
-                        placeholder={open ? "Sin registro" : "Falta (sin registro)"}
-                        disabled={setAttendance.isPending}
-                        onChange={(s) => change(r, s)}
-                      />
+                      {isFuture ? (
+                        <Badge variant="outline" className="font-normal">
+                          Programada
+                        </Badge>
+                      ) : (
+                        <StatusSelect
+                          className="ml-auto"
+                          value={r.status}
+                          recorded={r.recorded}
+                          placeholder={open ? "Sin registro" : "Falta (sin registro)"}
+                          disabled={setAttendance.isPending}
+                          onChange={(s) => change(r, s)}
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

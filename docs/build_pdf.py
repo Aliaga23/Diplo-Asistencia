@@ -330,15 +330,16 @@ SCREENS = [
      "Lista los estudiantes del programa activo con su asistencia acumulada, con búsqueda y "
      "filtro. Desde aquí se importan estudiantes o se registran manualmente."),
     ("05-admin-ficha-estudiante.png", "Ficha del estudiante",
-     "Ventana modal con el resumen y el historial del estudiante. El administrador puede "
-     "modificar el estado de cualquier fecha, restablecer la contraseña y habilitar o "
-     "deshabilitar la cuenta."),
+     "Página propia de cada estudiante, con sus datos, sus indicadores en el programa activo "
+     "y su historial. El administrador puede modificar el estado de las sesiones dictadas y "
+     "del día, restablecer la contraseña y habilitar o deshabilitar la cuenta."),
     ("06-admin-sesiones.png", "Sesiones",
      "Muestra las sesiones próximas y dictadas del programa, con la distribución de la "
      "asistencia. Permite importar horarios y crear sesiones."),
     ("07-admin-control-asistencia.png", "Control de asistencia por sesión",
      "Lista a los estudiantes de una sesión con la hora de registro, el origen y el estado, "
-     "que el administrador puede modificar y complementar con una nota."),
+     "que el administrador puede modificar y complementar con una nota. Si la sesión aún no "
+     "se dicta, la lista se muestra en modo de solo lectura."),
     ("09-admin-modal-importar.png", "Importación desde Excel",
      "Proceso en dos pasos: descarga del modelo de archivo y carga del archivo completado. "
      "El resultado se informa fila por fila."),
@@ -472,7 +473,8 @@ def build() -> None:
              "Carga de sesiones de clase por programa; las existentes se actualizan."],
             ["RF-04", "El administrador consulta a todos los estudiantes y modifica su "
                       "asistencia.",
-             "Pantallas de estudiantes y de control por sesión, para cualquier fecha."],
+             "Pantallas de estudiantes, ficha de cada estudiante y control por sesión, para "
+             "las sesiones dictadas y las del día."],
             ["RF-05", "Cada estudiante registra su asistencia.",
              "Registro con un botón; el servidor determina si es presente o tarde."],
             ["RF-06", "El estudiante solo modifica su asistencia del día.",
@@ -536,7 +538,9 @@ def build() -> None:
           "tolerancia de quince minutos, queda como «presente»; en caso contrario, como "
           "«tarde». El estudiante puede anular su propio registro durante el mismo día, "
           "mientras que el administrador puede asignar cualquier estado (presente, tarde, falta "
-          "o justificado) en cualquier fecha."),
+          "o justificado) en las sesiones ya dictadas y en las del día. Las sesiones futuras "
+          "son de solo lectura: ni el estudiante ni el administrador pueden registrar una "
+          "asistencia que todavía no ocurrió."),
         Heading("Importación desde Excel", 1, "5.4"),
         p("El administrador descarga un modelo de archivo Excel con los encabezados esperados, "
           "lo completa y lo carga en el sistema. Cada fila se valida de forma independiente: "
@@ -645,9 +649,9 @@ def build() -> None:
           "las migraciones de la base de datos y verifica que todos los servicios queden en "
           "funcionamiento."),
         Heading("Pruebas", 1, "9.1"),
-        p("El backend cuenta con 25 pruebas automatizadas que verifican la autenticación, las "
-          "reglas de registro de asistencia (registro del día, tardanza, anulación y rechazo de "
-          "otras fechas), la gestión de varios programas, la importación desde Excel y la "
+        p("El backend cuenta con 26 pruebas automatizadas que verifican la autenticación, las "
+          "reglas de registro de asistencia (registro del día, tardanza, anulación, rechazo de "
+          "otras fechas y bloqueo de sesiones futuras), la gestión de varios programas, la importación desde Excel y la "
           "exportación de reportes. El frontend se valida con análisis estático y verificación "
           "de tipos."),
     ]

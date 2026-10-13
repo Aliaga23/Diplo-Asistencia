@@ -74,6 +74,14 @@ export function useStudents(courseId?: string, q?: string) {
   })
 }
 
+export function useStudent(studentId: string, courseId?: string) {
+  return useQuery({
+    queryKey: ["student", studentId, courseId] as const,
+    queryFn: () =>
+      api.get<StudentSummary>(`/students/${studentId}${courseId ? `?course_id=${courseId}` : ""}`),
+  })
+}
+
 export function useStudentAttendance(studentId: string | null, courseId?: string) {
   return useQuery({
     queryKey: qk.studentAttendance(studentId ?? "", courseId),
@@ -116,6 +124,7 @@ export function useSetAttendance() {
       qc.invalidateQueries({ queryKey: ["matrix"] })
       qc.invalidateQueries({ queryKey: ["student-attendance"] })
       qc.invalidateQueries({ queryKey: ["students"] })
+      qc.invalidateQueries({ queryKey: ["student"] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
       qc.invalidateQueries({ queryKey: ["sessions"] })
     },
@@ -212,6 +221,9 @@ export function useUpdateStudent() {
       const { id, ...body } = v
       return api.patch<StudentSummary>(`/students/${id}`, body)
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["students"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["students"] })
+      qc.invalidateQueries({ queryKey: ["student"] })
+    },
   })
 }

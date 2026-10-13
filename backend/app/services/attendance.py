@@ -171,6 +171,11 @@ def admin_upsert(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Sesión o estudiante no encontrado")
     if not is_enrolled(db, student.id, session.course_id):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "El estudiante no está inscrito")
+    if session.session_date > today_local():
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "La sesión aún no se dicta: la asistencia se habilita el día de la clase",
+        )
     record = _get_record(db, session.id, student.id)
     if record is None:
         record = AttendanceRecord(session_id=session.id, student_id=student.id)

@@ -236,7 +236,11 @@ export default function AdminDashboardPage() {
           ) : (
             <ul className="grid gap-x-8 gap-y-1 md:grid-cols-2">
               {atRisk.map((s) => (
-                <li key={s.id} className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-muted/60">
+                <li key={s.id}>
+                  <Link
+                    href={`/admin/estudiantes/${s.id}`}
+                    className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-muted/60"
+                  >
                   <Avatar className="size-9">
                     <AvatarFallback className="bg-accent text-xs font-semibold text-accent-foreground">
                       {initials(s.full_name)}
@@ -257,6 +261,7 @@ export default function AdminDashboardPage() {
                       className="h-1 [&>[data-slot=progress-indicator]]:bg-status-absent"
                     />
                   </div>
+                  </Link>
                 </li>
               ))}
             </ul>

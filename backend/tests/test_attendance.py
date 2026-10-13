@@ -178,3 +178,22 @@ def test_dashboard_stats(client, db, course, student, admin):
     assert body["students_total"] == 1
     assert body["today_session"] is not None
     assert body["today_pending"] == 1
+
+
+def test_admin_cannot_mark_future_session(client, db, course, student, admin):
+    future = make_session(db, course, TODAY + timedelta(days=2), time(19, 0), time(21, 0))
+    today = make_session(db, course, TODAY, time(21, 0), time(22, 0))  # hoy, aún no empieza
+    h = login(client, "218166141")
+    r = client.put(
+        f"/api/v1/attendance/sessions/{future.id}/students/{student.id}",
+        json={"status": "present"},
+        headers=h,
+    )
+    assert r.status_code == 409
+    assert "aún no se dicta" in r.json()["detail"]
+    ok = client.put(
+        f"/api/v1/attendance/sessions/{today.id}/students/{student.id}",
+        json={"status": "excused", "note": "Aviso previo"},
+        headers=h,
+    )
+    assert ok.status_code == 200
