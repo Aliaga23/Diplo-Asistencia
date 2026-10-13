@@ -101,16 +101,15 @@ docs/       Documentación PDF, diagramas PlantUML, capturas y archivos Excel de
 ## Despliegue
 
 Producción en el VPS «arturo» (13.140.40.2), detrás del Traefik compartido, en
-`/opt/diplo-asistencia`. Cada push a `main`:
+`/opt/diplo-asistencia`. Un solo flujo, `.github/workflows/ci-cd.yml`, en cada push a `main`:
 
-1. **CI**: Ruff y pytest del backend; migraciones contra PostgreSQL 18 (`upgrade`, `check`,
-   datos de demostración y `downgrade`); lint, tipos y build del frontend.
-2. **Imágenes** `ghcr.io/aliaga23/diplo-asistencia/{backend,frontend}` con el tag `sha-<12>`.
-3. **Despliegue por SSH** con una llave dedicada y restringida: valida el compose antes de
-   reemplazarlo, baja las imágenes con un token efímero, levanta con `--wait` (el backend
-   migra al arrancar), comprueba que corre el tag pedido y, si algo falla, vuelve atrás.
+1. **Pruebas**: Ruff y pytest del backend; lint y tipos del frontend.
+2. **Imágenes**: backend y frontend en `ghcr.io/aliaga23/diplo-asistencia`, etiquetadas con el
+   commit.
+3. **Despliegue por SSH**: valida el compose, baja las imágenes con un token efímero y levanta
+   con `docker compose up --wait` (el backend migra al arrancar). Si un servicio no queda
+   sano, el flujo falla y muestra los registros.
 
 Solo el frontend se publica en Traefik; la API y PostgreSQL viven en una red interna sin
 salida a internet. Los secretos (`.env`) los genera `deploy/arturo/preparar.sh` en el propio
-servidor y nunca pasan por GitHub. Vuelta atrás manual: *Actions → Desplegar* con el tag
-anterior.
+servidor y nunca pasan por GitHub.

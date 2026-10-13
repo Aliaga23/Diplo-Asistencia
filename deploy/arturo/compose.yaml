@@ -2,7 +2,7 @@
 # Ver la sección Despliegue del README.
 #
 # El compose lo manda el REPOSITORIO: cada despliegue lo sube, lo valida y lo reemplaza
-# (.github/workflows/desplegar.yml). En el servidor solo vive .env, que crea una vez
+# (.github/workflows/ci-cd.yml). En el servidor solo vive .env, que crea una vez
 # deploy/arturo/preparar.sh y que nunca sale de la máquina.
 #
 # El VPS no compila: las imágenes llegan de GHCR con el tag de IMAGE_TAG (.env).
