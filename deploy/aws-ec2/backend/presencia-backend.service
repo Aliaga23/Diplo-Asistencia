@@ -1,0 +1,27 @@
+# EC2 backend → /etc/systemd/system/presencia-backend.service (instalación manual:
+# docs/despliegue-clase2.md, paso 5). La configuración la lee la app desde
+# /opt/presencia/backend/.env (pydantic-settings), igual que en desarrollo.
+[Unit]
+Description=Presencia - API FastAPI (backend)
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=presencia
+Group=presencia
+WorkingDirectory=/opt/presencia/backend
+Environment=PYTHONUNBUFFERED=1
+# 0.0.0.0 para recibir al frontend por la IP privada; el grupo de seguridad solo admite
+# el puerto 8000 desde el grupo del frontend.
+ExecStart=/opt/presencia/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

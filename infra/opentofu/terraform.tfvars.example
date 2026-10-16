@@ -1,0 +1,16 @@
+# OPCIONAL. Todo tiene un valor por defecto: infra.ps1 funciona sin este archivo.
+# Para cambiar algo:  Copy-Item terraform.tfvars.example terraform.tfvars  (no se versiona).
+# También puedes definir cualquier variable en el .env de la raíz como TF_VAR_<nombre>.
+# Nunca pongas aquí claves de AWS.
+
+# app_domain              = "diplo.asistencia.ejemplo.com"  # sin dominio: http://<IP elástica>
+# admin_cidrs             = ["203.0.113.10/32"]             # por defecto: tu IP pública actual /32
+# ssh_public_key_path     = "~/.ssh/diplo-asistencia.pub"   # infra.ps1 la crea si no existe
+# name_prefix             = "presencia-clase2"              # cambia si hay otro entorno en la misma cuenta
+# web_ingress_cidrs       = ["0.0.0.0/0"]
+# frontend_instance_type  = "t3.small"
+# backend_instance_type   = "t3.micro"
+# cpu_credits             = "unlimited"
+# frontend_volume_size_gb = 12
+# backend_volume_size_gb  = 10
+# ami_id                  = null
