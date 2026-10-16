@@ -94,12 +94,17 @@ cd frontend && pnpm lint && pnpm build
 ```text
 backend/    API FastAPI: modelos, servicios (reglas de negocio), routers, migraciones, pruebas
 frontend/   Next.js: pantallas, BFF (/api/auth, /api/backend), componentes y proxy por rol
-deploy/     Compose de producción y preparación del servidor
+deploy/     Compose de producción y preparación del servidor; aws-ec2/ para el práctico IaC
+infra/      OpenTofu del práctico IaC (2 EC2 en AWS) y su script infra.ps1
 docs/       Documentación PDF, diagramas PlantUML, capturas y archivos Excel de ejemplo
 .github/    CI, publicación de imágenes y despliegue
 ```
 
 ## Despliegue
+
+**Práctico IaC (clase 2)**: dos EC2 en AWS con OpenTofu y despliegue manual. Guía en
+[`docs/despliegue-clase2.md`](docs/despliegue-clase2.md); permisos en
+[`docs/permisos-aws.md`](docs/permisos-aws.md).
 
 Producción en el VPS «arturo» (13.140.40.2), detrás del Traefik compartido, en
 `/opt/diplo-asistencia`. Un solo flujo, `.github/workflows/ci-cd.yml`, en cada push a `main`:
