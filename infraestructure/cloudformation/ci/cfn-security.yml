@@ -43,5 +43,5 @@ jobs:
       - name: "Escaneo 3: cfn-nag"
         if: always()
         run: |
-          docker run --rm -v "$PWD:/data" -w /data stelligent/cfn_nag \
+          docker run --rm --entrypoint cfn_nag_scan -v "$PWD:/data" -w /data stelligent/cfn_nag \
             --input-path templates --fail-on-warnings

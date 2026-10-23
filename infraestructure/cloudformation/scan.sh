@@ -23,7 +23,7 @@ echo "== Trivy";     docker run --rm -v "$PWD:/data" -w /data aquasec/trivy:0.69
   config --exit-code 1 templates \
   | tee "$OUT/trivy.txt" || RC=1
 
-echo "== cfn-nag";   docker run --rm -v "$PWD:/data" -w /data stelligent/cfn_nag \
+echo "== cfn-nag";   docker run --rm --entrypoint cfn_nag_scan -v "$PWD:/data" -w /data stelligent/cfn_nag \
   --input-path templates --fail-on-warnings \
   | tee "$OUT/cfn-nag.txt" || RC=1
 
