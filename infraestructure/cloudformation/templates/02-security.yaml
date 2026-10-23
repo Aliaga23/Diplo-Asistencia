@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >-
-  Presencia - Seguridad (equivale a modules/security + iam.tf de Terraform).
+  Asistencia - Seguridad (equivale a modules/security + iam.tf de Terraform).
   Security groups del frontend y backend con minimo privilegio y rol IAM para SSM.
 
 Parameters:

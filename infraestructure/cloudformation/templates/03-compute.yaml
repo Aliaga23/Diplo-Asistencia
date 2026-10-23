@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >-
-  Presencia - Computo (equivale a modules/ec2 + main.tf de Terraform).
+  Asistencia - Computo (equivale a modules/ec2 + main.tf de Terraform).
   Dos EC2 Ubuntu 24.04: frontend (Next.js + Nginx) y backend (FastAPI + PostgreSQL).
 
 Parameters:
