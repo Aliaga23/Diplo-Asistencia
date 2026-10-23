@@ -73,7 +73,25 @@ Parameters:
       IP publica del backend para salir a internet (apt, uv). Con "false" el backend
       queda solo privado, pero necesita NAT Gateway o VPC endpoints para instalar paquetes.
 
+  RepoUrl:
+    Type: String
+    Description: URL HTTPS del repositorio PUBLICO con frontend/ y backend/ (ej. https://github.com/usuario/presencia-aws.git)
+    AllowedPattern: "^https://.+\\.git$"
+    ConstraintDescription: Debe ser una URL https que termine en .git
+
+  RepoBranch:
+    Type: String
+    Default: main
+    AllowedPattern: "^[A-Za-z0-9._/-]+$"
+
+  DatosDemo:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Carga estudiantes, sesiones y asistencia de ejemplo (app.seed --demo).
+
 Conditions:
+  CargarDemo: !Equals [!Ref DatosDemo, "true"]
   UsarMonitoreoDetallado: !Equals [!Ref DetailedMonitoring, "true"]
   BackendConIpPublica: !Equals [!Ref AsignarIpPublicaBackend, "true"]
 
@@ -139,28 +157,94 @@ Resources:
             Encrypted: true
             DeleteOnTermination: true
       UserData:
-        Fn::Base64: |
+        Fn::Base64: !Sub |
           #!/bin/bash
+          # Frontend: Nginx (80) -> Next.js (127.0.0.1:3000) -> API privada del backend.
           set -euo pipefail
           exec > >(tee -a /var/log/setup-frontend.log) 2>&1
-          echo "Iniciando configuracion del frontend..."
+          echo "== [1/6] Inicio $(date)"
           export DEBIAN_FRONTEND=noninteractive
+          APP=/opt/presencia/app
+          API=http://${BackendPrivateIp}:8000
 
+          echo "== [2/6] Swap de 2 GB (compilar Next.js en 2 GB de RAM puede quedarse sin memoria)"
+          if [ ! -f /swapfile ]; then
+            fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+            echo '/swapfile none swap sw 0 0' >> /etc/fstab
+          fi
+
+          echo "== [3/6] Paquetes: Nginx, git, Node.js 24 y pnpm"
           apt-get update
           apt-get install -y curl ca-certificates gnupg git nginx
-
-          # Node.js 24 (la version de frontend/.node-version) y pnpm via corepack
           curl -fsSL https://deb.nodesource.com/setup_24.x -o /tmp/nodesource.sh
           bash /tmp/nodesource.sh
           apt-get install -y nodejs
           corepack enable
 
-          mkdir -p /opt/presencia/frontend
-          systemctl enable --now nginx
+          echo "== [4/6] Codigo desde ${RepoUrl} (${RepoBranch})"
+          install -d -o ubuntu -g ubuntu /opt/presencia
+          sudo -u ubuntu git clone --depth 1 --branch ${RepoBranch} ${RepoUrl} $APP
 
-          node --version
-          nginx -v
-          echo "Frontend preparado correctamente."
+          echo "== [5/6] Compilar Next.js (standalone)"
+          sudo -u ubuntu -H env COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1 API_URL=$API \
+            bash -c "cd $APP/frontend && pnpm install --frozen-lockfile && (pnpm build || pnpm build) \
+              && cp -r public .next/standalone/ && mkdir -p .next/standalone/.next \
+              && cp -r .next/static .next/standalone/.next/"
+
+          cat > /etc/presencia-frontend.env <<EOF
+          NODE_ENV=production
+          PORT=3000
+          HOSTNAME=127.0.0.1
+          API_URL=$API
+          NEXT_TELEMETRY_DISABLED=1
+          EOF
+
+          cat > /etc/systemd/system/presencia-frontend.service <<'EOF'
+          [Unit]
+          Description=Presencia frontend (Next.js)
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          User=ubuntu
+          WorkingDirectory=/opt/presencia/app/frontend/.next/standalone
+          EnvironmentFile=/etc/presencia-frontend.env
+          ExecStart=/usr/bin/node server.js
+          Restart=always
+          RestartSec=5
+          NoNewPrivileges=true
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          systemctl daemon-reload
+          systemctl enable --now presencia-frontend
+
+          echo "== [6/6] Nginx como proxy inverso"
+          cat > /etc/nginx/sites-available/presencia <<'EOF'
+          server {
+            listen 80 default_server;
+            server_name _;
+            server_tokens off;
+            client_max_body_size 10m;
+            location / {
+              proxy_pass http://127.0.0.1:3000;
+              proxy_http_version 1.1;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+            }
+          }
+          EOF
+          rm -f /etc/nginx/sites-enabled/default
+          ln -sf /etc/nginx/sites-available/presencia /etc/nginx/sites-enabled/presencia
+          nginx -t
+          systemctl enable nginx
+          systemctl reload nginx
+
+          curl -fsS --retry 20 --retry-delay 3 --retry-connrefused -o /dev/null http://127.0.0.1:3000/login
+          echo "== Frontend listo $(date)"
       Tags:
         - Key: Name
           Value: !Sub "${Proyecto}-${Ambiente}-frontend"
@@ -216,26 +300,70 @@ Resources:
             Encrypted: true
             DeleteOnTermination: true
       UserData:
-        Fn::Base64: |
-          #!/bin/bash
-          set -euo pipefail
-          exec > >(tee -a /var/log/setup-backend.log) 2>&1
-          echo "Iniciando configuracion del backend..."
-          export DEBIAN_FRONTEND=noninteractive
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            # Backend: FastAPI (0.0.0.0:8000, el SG solo deja entrar al frontend) + PostgreSQL local.
+            set -euo pipefail
+            exec > >(tee -a /var/log/setup-backend.log) 2>&1
+            echo "== [1/5] Inicio $(date)"
+            export DEBIAN_FRONTEND=noninteractive
+            APP=/opt/presencia/app
 
-          apt-get update
-          apt-get install -y python3 python3-venv python3-dev build-essential \
-            git curl ca-certificates libpq-dev postgresql postgresql-contrib
+            echo "== [2/5] Paquetes: PostgreSQL, git y uv (instala Python 3.14)"
+            apt-get update
+            apt-get install -y git curl ca-certificates build-essential libpq-dev postgresql
+            curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+            systemctl enable --now postgresql
 
-          # uv instala Python 3.14 (backend/.python-version) y las dependencias
-          curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+            echo "== [3/5] Base de datos con credenciales aleatorias (no salen del servidor)"
+            DB_PASS=$(openssl rand -hex 24)
+            JWT=$(openssl rand -hex 48)
+            sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE asistencia LOGIN PASSWORD '$DB_PASS'"
+            sudo -u postgres createdb -O asistencia asistencia
 
-          mkdir -p /opt/presencia/backend
-          systemctl enable --now postgresql
+            echo "== [4/5] Codigo desde ${RepoUrl} (${RepoBranch}), dependencias y migraciones"
+            install -d -o ubuntu -g ubuntu /opt/presencia
+            sudo -u ubuntu git clone --depth 1 --branch ${RepoBranch} ${RepoUrl} $APP
+            umask 077
+            cat > $APP/backend/.env <<EOF
+            ENVIRONMENT=production
+            DATABASE_URL=postgresql+psycopg://asistencia:$DB_PASS@localhost:5432/asistencia
+            JWT_SECRET=$JWT
+            TIMEZONE=America/La_Paz
+            EOF
+            chown ubuntu:ubuntu $APP/backend/.env
+            umask 022
+            sudo -u ubuntu -H bash -c "cd $APP/backend && uv sync --locked --no-dev \
+              && uv run --no-dev alembic upgrade head \
+              && uv run --no-dev python -m app.seed ${SeedArgs}"
 
-          uv --version
-          psql --version
-          echo "Backend preparado correctamente."
+            echo "== [5/5] Servicio systemd presencia-backend"
+            cat > /etc/systemd/system/presencia-backend.service <<'EOF'
+            [Unit]
+            Description=Presencia backend (FastAPI)
+            After=network-online.target postgresql.service
+            Wants=network-online.target
+            Requires=postgresql.service
+
+            [Service]
+            User=ubuntu
+            WorkingDirectory=/opt/presencia/app/backend
+            ExecStart=/opt/presencia/app/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers
+            Restart=always
+            RestartSec=5
+            NoNewPrivileges=true
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+            systemctl daemon-reload
+            systemctl enable --now presencia-backend
+
+            curl -fsS --retry 20 --retry-delay 3 --retry-connrefused http://127.0.0.1:8000/health
+            echo
+            echo "== Backend listo $(date)"
+          - SeedArgs: !If [CargarDemo, "--demo", ""]
       Tags:
         - Key: Name
           Value: !Sub "${Proyecto}-${Ambiente}-backend"
@@ -275,4 +403,5 @@ Outputs:
     Value: !Sub "ssh -i ~/.ssh/presencia-aws ubuntu@${BackendInstance.PublicIp}"
 
   UrlAplicacion:
+    Description: La web (lista unos 10-15 min despues de CREATE_COMPLETE)
     Value: !Sub "http://${FrontendEip}"

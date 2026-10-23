@@ -47,7 +47,7 @@ Los stacks se conectan con **Export / Fn::ImportValue** (el equivalente a `terra
 | IP privada | 10.20.1.10 | 10.20.1.20 |
 | IP pública | Elástica (fija) | Automática (parámetro `AsignarIpPublicaBackend`) |
 | Disco | 20 GiB gp3 cifrado | 20 GiB gp3 cifrado |
-| UserData | Nginx + Node.js 24 + pnpm | PostgreSQL + uv (Python 3.14) |
+| UserData | Swap 2 GB, Node.js 24, clona el repo, `pnpm build`, servicio `presencia-frontend` (:3000), Nginx :80 → :3000 | PostgreSQL con clave aleatoria, clona el repo, `uv sync`, Alembic, seed, servicio `presencia-backend` (:8000) |
 
 Las dos usan **IMDSv2 obligatorio** (vía Launch Template), créditos T3 `standard`, rol IAM con
 `AmazonSSMManagedInstanceCore` (acceso por Session Manager) y la AMI oficial de Canonical
@@ -58,18 +58,23 @@ resuelta por SSM (equivale al `data "aws_ami"` de Terraform).
 
 ## Desplegar
 
+El código sale de un repositorio **público** de GitHub con `frontend/` y `backend/` en la raíz
+(parámetro `RepoUrl`). Las credenciales de PostgreSQL y el `JWT_SECRET` se generan dentro del
+backend al arrancar: no están en el template ni en Git. La web queda lista unos 10–15 minutos
+después de `CREATE_COMPLETE` (progreso en `/var/log/setup-frontend.log` y `setup-backend.log`).
+
 Requisitos: AWS CLI v2 configurado (`aws configure`) y la clave `~/.ssh/presencia-aws.pub`.
 
 ```powershell
 # Ver los cambios sin aplicarlos (change set = terraform plan)
-.\deploy.ps1 -AdminCidr "TU.IP.PUBLICA/32" -Plan
+.\deploy.ps1 -AdminCidr "TU.IP/32" -RepoUrl "https://github.com/USUARIO/presencia-aws.git" -Plan
 
 # Aplicar
-.\deploy.ps1 -AdminCidr "TU.IP.PUBLICA/32"
+.\deploy.ps1 -AdminCidr "TU.IP/32" -RepoUrl "https://github.com/USUARIO/presencia-aws.git"
 ```
 
 ```bash
-ADMIN_CIDR=TU.IP.PUBLICA/32 ./deploy.sh
+ADMIN_CIDR=TU.IP/32 REPO_URL=https://github.com/USUARIO/presencia-aws.git ./deploy.sh
 ./destroy.sh
 ```
 

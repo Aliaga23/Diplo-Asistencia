@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Despliega Presencia en AWS con CloudFormation (Linux / macOS / Git Bash).
 #
-#   ADMIN_CIDR=200.87.10.20/32 ./deploy.sh          # crea / actualiza los 3 stacks
-#   ADMIN_CIDR=200.87.10.20/32 PLAN=1 ./deploy.sh   # solo change sets (equivale a terraform plan)
+#   ADMIN_CIDR=189.28.74.200/32 REPO_URL=https://github.com/USUARIO/presencia-aws.git ./deploy.sh
+#   ADMIN_CIDR=... REPO_URL=... PLAN=1 ./deploy.sh   # solo change sets (equivale a terraform plan)
 set -euo pipefail
 cd "$(dirname "$0")"
 
 : "${ADMIN_CIDR:?Indica ADMIN_CIDR, por ejemplo tu IP publica /32}"
+: "${REPO_URL:?Indica REPO_URL, por ejemplo https://github.com/usuario/presencia-aws.git}"
 PROYECTO=${PROYECTO:-presencia}
 AMBIENTE=${AMBIENTE:-dev}
 REGION=${AWS_REGION:-us-east-1}
@@ -34,7 +35,7 @@ done
 
 desplegar network  templates/01-network.yaml
 desplegar security templates/02-security.yaml AdminCidr="$ADMIN_CIDR"
-desplegar compute  templates/03-compute.yaml  SshPublicKey="$(tr -d '\r\n' < "$SSH_PUB")"
+desplegar compute  templates/03-compute.yaml  SshPublicKey="$(tr -d '\r\n' < "$SSH_PUB")" RepoUrl="$REPO_URL" RepoBranch="${REPO_BRANCH:-main}"
 
 if [ "${PLAN:-0}" != "1" ]; then
   aws cloudformation describe-stacks --region "$REGION" --stack-name "$PROYECTO-$AMBIENTE-compute" \

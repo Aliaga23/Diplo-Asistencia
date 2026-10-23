@@ -1,11 +1,13 @@
 # Despliega Presencia en AWS con CloudFormation (Windows / PowerShell).
 #
-#   .\deploy.ps1 -AdminCidr "200.87.10.20/32"            # crea / actualiza los 3 stacks
-#   .\deploy.ps1 -AdminCidr "200.87.10.20/32" -Plan      # solo change sets (equivale a terraform plan)
+#   .\deploy.ps1 -AdminCidr "189.28.74.200/32" -RepoUrl "https://github.com/USUARIO/presencia-aws.git"
+#   .\deploy.ps1 -AdminCidr "189.28.74.200/32" -RepoUrl "https://github.com/USUARIO/presencia-aws.git" -Plan  # solo change sets
 #
 # Orden: red -> seguridad -> computo (cada stack importa los Exports del anterior).
 param(
   [Parameter(Mandatory = $true)][string]$AdminCidr,
+  [Parameter(Mandatory = $true)][string]$RepoUrl,
+  [string]$RepoBranch = "main",
   [string]$Proyecto = "presencia",
   [string]$Ambiente = "dev",
   [string]$Region = "us-east-1",
@@ -40,7 +42,7 @@ aws cloudformation validate-template --region $Region --template-body file://tem
 
 Desplegar "network"  "templates/01-network.yaml"  @("Proyecto=$Proyecto", "Ambiente=$Ambiente")
 Desplegar "security" "templates/02-security.yaml" @("Proyecto=$Proyecto", "Ambiente=$Ambiente", "AdminCidr=$AdminCidr")
-Desplegar "compute"  "templates/03-compute.yaml"  @("Proyecto=$Proyecto", "Ambiente=$Ambiente", "SshPublicKey=$llave")
+Desplegar "compute"  "templates/03-compute.yaml"  @("Proyecto=$Proyecto", "Ambiente=$Ambiente", "SshPublicKey=$llave", "RepoUrl=$RepoUrl", "RepoBranch=$RepoBranch")
 
 if (-not $Plan) {
   aws cloudformation describe-stacks --region $Region --stack-name "$Proyecto-$Ambiente-compute" `
