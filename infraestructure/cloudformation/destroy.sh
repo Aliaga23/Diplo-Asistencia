@@ -2,7 +2,7 @@
 # Borra los stacks en orden inverso (computo -> seguridad -> red).
 # Los Exports en uso impiden borrar la red antes que las instancias.
 set -euo pipefail
-PROYECTO=${PROYECTO:-presencia}
+PROYECTO=${PROYECTO:-asistencia}
 AMBIENTE=${AMBIENTE:-dev}
 REGION=${AWS_REGION:-us-east-1}
 

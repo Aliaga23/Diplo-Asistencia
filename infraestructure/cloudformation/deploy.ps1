@@ -1,14 +1,14 @@
 # Despliega Presencia en AWS con CloudFormation (Windows / PowerShell).
 #
-#   .\deploy.ps1 -AdminCidr "189.28.74.200/32" -RepoUrl "https://github.com/USUARIO/presencia-aws.git"
-#   .\deploy.ps1 -AdminCidr "189.28.74.200/32" -RepoUrl "https://github.com/USUARIO/presencia-aws.git" -Plan  # solo change sets
+#   .\deploy.ps1 -AdminCidr "189.28.74.200/32" -RepoUrl "https://github.com/JuanaBP/presencia-aws.git"
+#   .\deploy.ps1 -AdminCidr "189.28.74.200/32" -RepoUrl "https://github.com/JuanaBP/presencia-aws.git" -Plan  # solo change sets
 #
 # Orden: red -> seguridad -> computo (cada stack importa los Exports del anterior).
 param(
   [Parameter(Mandatory = $true)][string]$AdminCidr,
   [Parameter(Mandatory = $true)][string]$RepoUrl,
   [string]$RepoBranch = "main",
-  [string]$Proyecto = "presencia",
+  [string]$Proyecto = "asistencia",
   [string]$Ambiente = "dev",
   [string]$Region = "us-east-1",
   [string]$SshPublicKeyPath = "$HOME\.ssh\presencia-aws.pub",

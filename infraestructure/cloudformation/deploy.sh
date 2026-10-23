@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Despliega Presencia en AWS con CloudFormation (Linux / macOS / Git Bash).
 #
-#   ADMIN_CIDR=189.28.74.200/32 REPO_URL=https://github.com/USUARIO/presencia-aws.git ./deploy.sh
+#   ADMIN_CIDR=189.28.74.200/32 REPO_URL=https://github.com/JuanaBP/presencia-aws.git ./deploy.sh
 #   ADMIN_CIDR=... REPO_URL=... PLAN=1 ./deploy.sh   # solo change sets (equivale a terraform plan)
 set -euo pipefail
 cd "$(dirname "$0")"
 
 : "${ADMIN_CIDR:?Indica ADMIN_CIDR, por ejemplo tu IP publica /32}"
 : "${REPO_URL:?Indica REPO_URL, por ejemplo https://github.com/usuario/presencia-aws.git}"
-PROYECTO=${PROYECTO:-presencia}
+PROYECTO=${PROYECTO:-asistencia}
 AMBIENTE=${AMBIENTE:-dev}
 REGION=${AWS_REGION:-us-east-1}
 SSH_PUB=${SSH_PUB:-$HOME/.ssh/presencia-aws.pub}
