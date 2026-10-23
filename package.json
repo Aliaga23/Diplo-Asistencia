@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "phosphor-icons": "^1.4.2",
+    "react-hook-form": "^7.90.0"
+  }
+}

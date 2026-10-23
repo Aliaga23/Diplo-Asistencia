@@ -1,0 +1,186 @@
+data.aws_availability_zones.available: Reading...
+data.aws_ami.ubuntu: Reading...
+aws_key_pair.admin: Refreshing state... [id=presencia-dev-admin]
+module.network.aws_vpc.main: Refreshing state... [id=vpc-0ecab92a469ebac15]
+data.aws_availability_zones.available: Still reading... [10s elapsed]
+data.aws_ami.ubuntu: Still reading... [10s elapsed]
+data.aws_availability_zones.available: Read complete after 12s [id=us-east-1]
+data.aws_ami.ubuntu: Read complete after 13s [id=ami-02a9cdd4e98bc3c78]
+module.network.aws_internet_gateway.main: Refreshing state... [id=igw-02443da8214249474]
+module.network.aws_subnet.public: Refreshing state... [id=subnet-0ae4eb3cbaaf93a1e]
+module.security.aws_security_group.frontend: Refreshing state... [id=sg-0d49a29c615557dd4]
+module.security.aws_security_group.backend: Refreshing state... [id=sg-09fa61060b97914a4]
+module.network.aws_route_table.public: Refreshing state... [id=rtb-087b1c4c15b135aab]
+module.security.aws_vpc_security_group_egress_rule.frontend_internet["ntp"]: Refreshing state... [id=sgr-00ed9c3beea1530a7]
+module.security.aws_vpc_security_group_ingress_rule.frontend_http: Refreshing state... [id=sgr-0ddb6ef2e0ea84dd3]
+module.security.aws_vpc_security_group_egress_rule.frontend_internet["https"]: Refreshing state... [id=sgr-0d079b650f55df650]
+module.security.aws_vpc_security_group_egress_rule.frontend_internet["http"]: Refreshing state... [id=sgr-062d09577477a35d6]
+module.security.aws_vpc_security_group_ingress_rule.frontend_https: Refreshing state... [id=sgr-016af8518161e42f8]
+module.security.aws_vpc_security_group_ingress_rule.frontend_ssh["203.0.113.10/32"]: Refreshing state... [id=sgr-0989046e78f09b42e]
+module.frontend.aws_instance.this: Refreshing state... [id=i-0b8c8b29697b324fb]
+module.security.aws_vpc_security_group_ingress_rule.backend_ssh["203.0.113.10/32"]: Refreshing state... [id=sgr-0ef2342f3860232ed]
+module.security.aws_vpc_security_group_egress_rule.frontend_api: Refreshing state... [id=sgr-0c0298d604b5a38d3]
+module.security.aws_vpc_security_group_ingress_rule.backend_api: Refreshing state... [id=sgr-08d75c98c0ffafd1f]
+module.security.aws_vpc_security_group_egress_rule.backend_internet["http"]: Refreshing state... [id=sgr-049ffdaab64ba3051]
+module.security.aws_vpc_security_group_egress_rule.backend_internet["https"]: Refreshing state... [id=sgr-04cc0ffb4f1d8f5a4]
+module.security.aws_vpc_security_group_egress_rule.backend_internet["ntp"]: Refreshing state... [id=sgr-0d2191a725c51b846]
+module.network.aws_route_table_association.public: Refreshing state... [id=rtbassoc-06e2a891fe09e698a]
+module.backend.aws_instance.this: Refreshing state... [id=i-0d8836b78ba672af9]
+aws_eip.frontend: Refreshing state... [id=eipalloc-0ad68a3044c97f5ba]
+
+Note: Objects have changed outside of OpenTofu
+
+OpenTofu detected the following changes made outside of OpenTofu since the
+last "tofu apply" which may have affected this plan:
+
+  # module.frontend.aws_instance.this has changed
+  ~ resource "aws_instance" "this" {
+        id                                   = "i-0b8c8b29697b324fb"
+      + public_ip                            = "184.195.190.155"
+        tags                                 = {
+            "Name" = "presencia-dev-frontend"
+            "Role" = "frontend"
+        }
+        # (30 unchanged attributes hidden)
+
+        # (9 unchanged blocks hidden)
+    }
+
+
+Unless you have made equivalent changes to your configuration, or ignored the
+relevant attributes using ignore_changes, the following plan may include
+actions to undo or respond to these changes.
+
+─────────────────────────────────────────────────────────────────────────────
+
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  ~ update in-place (current -> planned)
+
+OpenTofu will perform the following actions:
+
+  # module.backend.aws_instance.this will be updated in-place
+  ~ resource "aws_instance" "this" {
+        id                                   = "i-0d8836b78ba672af9"
+      ~ public_dns                           = "ec2-3-239-165-197.compute-1.amazonaws.com" -> (known after apply)
+      ~ public_ip                            = "3.239.165.197" -> (known after apply)
+        tags                                 = {
+            "Name" = "presencia-dev-backend"
+            "Role" = "backend"
+        }
+      + user_data                            = <<-EOT
+            #!/bin/bash
+            set -euo pipefail
+            
+            exec > >(tee -a /var/log/setup-backend.log) 2>&1
+            
+            echo "Iniciando configuracion del backend..."
+            
+            export DEBIAN_FRONTEND=noninteractive
+            
+            # Actualizar repositorios
+            apt-get update
+            
+            # Instalar dependencias
+            apt-get install -y \
+              python3 \
+              python3-pip \
+              python3-venv \
+              python3-dev \
+              build-essential \
+              git \
+              curl \
+              ca-certificates \
+              libpq-dev \
+              postgresql \
+              postgresql-contrib
+            
+            # Crear directorio de aplicacion
+            mkdir -p /opt/presencia/backend
+            
+            # Crear entorno virtual
+            python3 -m venv /opt/presencia/backend/.venv
+            
+            # Habilitar PostgreSQL
+            systemctl enable postgresql
+            systemctl start postgresql
+            
+            # Comprobar instalacion
+            python3 --version
+            psql --version
+            
+            echo "Backend preparado correctamente."
+        EOT
+        # (30 unchanged attributes hidden)
+
+        # (9 unchanged blocks hidden)
+    }
+
+  # module.frontend.aws_instance.this will be updated in-place
+  ~ resource "aws_instance" "this" {
+        id                                   = "i-0b8c8b29697b324fb"
+      ~ public_dns                           = "ec2-184-195-190-155.compute-1.amazonaws.com" -> (known after apply)
+      ~ public_ip                            = "184.195.190.155" -> (known after apply)
+        tags                                 = {
+            "Name" = "presencia-dev-frontend"
+            "Role" = "frontend"
+        }
+      + user_data                            = <<-EOT
+            #!/bin/bash
+            set -euo pipefail
+            
+            exec > >(tee -a /var/log/setup-frontend.log) 2>&1
+            
+            echo "Iniciando configuracion del frontend..."
+            
+            export DEBIAN_FRONTEND=noninteractive
+            
+            # Actualizar repositorios
+            apt-get update
+            
+            # Instalar paquetes necesarios
+            apt-get install -y \
+              curl \
+              ca-certificates \
+              gnupg \
+              git \
+              nginx
+            
+            # Instalar Node.js 22 LTS desde NodeSource
+            curl -fsSL https://deb.nodesource.com/setup_22.x -o /tmp/nodesource.sh
+            bash /tmp/nodesource.sh
+            apt-get install -y nodejs
+            
+            # Preparar directorio
+            mkdir -p /opt/presencia/frontend
+            
+            # Habilitar Nginx
+            systemctl enable nginx
+            systemctl start nginx
+            
+            # Comprobar versiones
+            node --version
+            npm --version
+            nginx -v
+            
+            echo "Frontend preparado correctamente."
+        EOT
+        # (30 unchanged attributes hidden)
+
+        # (9 unchanged blocks hidden)
+    }
+
+Plan: 0 to add, 2 to change, 0 to destroy.
+
+Changes to Outputs:
+  ~ backend         = {
+      ~ public_ip      = "3.239.165.197" -> (known after apply)
+        # (4 unchanged attributes hidden)
+    }
+  ~ ssh_backend     = "ssh -i \"~/.ssh/presencia-aws\" ubuntu@3.239.165.197" -> (known after apply)
+
+─────────────────────────────────────────────────────────────────────────────
+
+Note: You didn't use the -out option to save this plan, so OpenTofu can't
+guarantee to take exactly these actions if you run "tofu apply" now.
+Releasing state lock. This may take a few moments...

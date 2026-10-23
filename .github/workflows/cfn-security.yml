@@ -1,0 +1,47 @@
+name: CloudFormation · escaneos de seguridad
+
+# Shift left: cada PR que toque las plantillas pasa por 3 escáneres antes del despliegue.
+on:
+  pull_request:
+    paths: ["infraestructure/cloudformation/**"]
+  push:
+    branches: [main]
+    paths: ["infraestructure/cloudformation/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: infraestructure/cloudformation
+
+jobs:
+  escaneos:
+    name: cfn-lint · Checkov · Trivy · cfn-nag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Instalar cfn-lint y Checkov
+        run: pipx install cfn-lint && pipx install checkov
+
+      - name: cfn-lint (validación)
+        run: cfn-lint templates/*.yaml
+
+      - name: "Escaneo 1: Checkov"
+        if: always()
+        run: checkov -d templates --framework cloudformation --compact
+
+      - name: "Escaneo 2: Trivy"
+        if: always()
+        run: |
+          docker run --rm -v "$PWD:/data" -w /data aquasec/trivy:0.69.3 \
+            config --exit-code 1 templates
+
+      - name: "Escaneo 3: cfn-nag"
+        if: always()
+        run: |
+          docker run --rm -v "$PWD:/data" -w /data stelligent/cfn_nag \
+            --input-path templates --fail-on-warnings

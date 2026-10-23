@@ -1,0 +1,50 @@
+------------------------------------------------------------
+templates/01-network.yaml
+------------------------------------------------------------------------------------------------------------------------
+| WARN W60
+|
+| Resource: ["Vpc"]
+| Line Numbers: [31]
+|
+| VPC should have a flow log attached
+
+Failures count: 0
+Warnings count: 1
+------------------------------------------------------------
+templates/02-security.yaml
+------------------------------------------------------------------------------------------------------------------------
+| WARN W28
+|
+| Resource: ["FrontendSecurityGroup", "BackendSecurityGroup", "SsmRole"]
+| Line Numbers: [36, 82, 142]
+|
+| Resource found with an explicit name, this disallows updates that require replacement of this resource
+------------------------------------------------------------
+| WARN W5
+|
+| Resource: ["FrontendSecurityGroup", "BackendSecurityGroup"]
+| Line Numbers: [36, 82]
+|
+| Security Groups found with cidr open to world on egress
+------------------------------------------------------------
+| WARN W9
+|
+| Resource: ["FrontendSecurityGroup"]
+| Line Numbers: [36]
+|
+| Security Groups found with ingress cidr that is not /32
+------------------------------------------------------------
+| WARN W2
+|
+| Resource: ["FrontendSecurityGroup"]
+| Line Numbers: [36]
+|
+| Security Groups found with cidr open to world on ingress.  This should never be true on instance.  Permissible on ELB
+
+Failures count: 0
+Warnings count: 7
+------------------------------------------------------------
+templates/03-compute.yaml
+------------------------------------------------------------
+Failures count: 0
+Warnings count: 0

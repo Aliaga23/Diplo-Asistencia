@@ -1,0 +1,1 @@
+cfn-lint: sin errores (rc=0)

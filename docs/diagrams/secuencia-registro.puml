@@ -1,0 +1,34 @@
+@startuml secuencia-registro
+!include _tema.iuml
+title Secuencia: el estudiante registra su asistencia del día
+autonumber
+
+actor Estudiante as E
+participant "Next.js\n(página + BFF)" as N
+participant "FastAPI\n/me/attendance" as F
+participant "Servicio de\nasistencia" as S
+database PostgreSQL as DB
+
+E -> N : Pulsa «Registrar mi asistencia»
+N -> F : POST /api/v1/me/attendance/{sesión}\nAuthorization: Bearer JWT (desde cookie)
+F -> S : student_self_mark(estudiante, sesión)
+S -> DB : SELECT sesión e inscripción
+alt la sesión no es de hoy (America/La_Paz)
+  S --> F : 403 «Solo puedes registrar tu asistencia del día de hoy»
+  F --> N : 403
+  N --> E : Notificación de error
+else no está inscrito en el programa
+  S --> F : 403 «No estás inscrito en este programa»
+  F --> N : 403
+  N --> E : Notificación de error
+else ya existe un registro
+  S --> F : registro existente (idempotente, nunca se degrada)
+  F --> N : 200
+else registro nuevo
+  S -> S : estado = presente si ahora ≤ inicio + tolerancia;\nsi no, tarde
+  S -> DB : INSERT attendance_records (source = self)
+  S --> F : registro
+  F --> N : 200 {status, marked_at}
+  N --> E : Notificación «Asistencia registrada»
+end
+@enduml

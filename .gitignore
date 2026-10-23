@@ -1,0 +1,84 @@
+# Python / backend
+backend/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+backend/.env
+backend/*.db
+# Los genera `python -m app.seed`; hay copias fijas en docs/ejemplos/.
+backend/samples/
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+.env
+
+# OpenTofu (infra/opentofu): estado, planes y variables locales. Se versionan los
+# *.tf, terraform.tfvars.example y .terraform.lock.hcl.
+
+# OpenTofu / Terraform
+**/.terraform/
+
+# States
+*.tfstate
+*.tfstate.*
+
+# Planes
+*.tfplan
+tfplan
+tfplan.*
+plan.out
+
+# Variables locales
+*.tfvars
+*.tfvars.json
+
+# Permitir archivos de ejemplo
+!*.tfvars.example
+!*.tfvars.json.example
+
+# Credenciales y secretos
+.env
+.env.*
+!.env.example
+
+*.pem
+*.key
+
+# Errores
+crash.log
+crash.*.log
+
+# Overrides
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Configuración local CLI
+.terraformrc
+terraform.rc
+
+# Dependencias Python
+.venv/
+__pycache__/
+*.pyc
+
+# Dependencias Next.js
+node_modules/
+.next/
+
+
+# Secretos, claves privadas y respaldos de base de datos
+*.env
+*.pem
+*.ppk
+id_rsa
+id_ecdsa
+id_ed25519
+*.dump

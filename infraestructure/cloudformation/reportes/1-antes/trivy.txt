@@ -1,0 +1,157 @@
+
+Report Summary
+
+┌──────────────────┬────────────────┬───────────────────┐
+│      Target      │      Type      │ Misconfigurations │
+├──────────────────┼────────────────┼───────────────────┤
+│ 01-network.yaml  │ cloudformation │         1         │
+├──────────────────┼────────────────┼───────────────────┤
+│ 02-security.yaml │ cloudformation │         6         │
+├──────────────────┼────────────────┼───────────────────┤
+│ 03-compute.yaml  │ cloudformation │         0         │
+└──────────────────┴────────────────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+
+01-network.yaml (cloudformation)
+================================
+Tests: 44 (SUCCESSES: 43, FAILURES: 1)
+Failures: 1 (UNKNOWN: 0, LOW: 0, MEDIUM: 1, HIGH: 0, CRITICAL: 0)
+
+AWS-0178 (MEDIUM): VPC does not have VPC Flow Logs enabled.
+════════════════════════════════════════
+VPC Flow Logs provide visibility into network traffic that traverses the VPC and can be used to detect anomalous traffic or insight during security workflows.
+
+
+See https://avd.aquasec.com/misconfig/aws-0178
+────────────────────────────────────────
+ 01-network.yaml:30-38
+────────────────────────────────────────
+  30 ┌   Vpc:
+  31 │     Type: AWS::EC2::VPC
+  32 │     Properties:
+  33 │       CidrBlock: !Ref VpcCidr
+  34 │       EnableDnsSupport: true
+  35 │       EnableDnsHostnames: true
+  36 │       Tags:
+  37 │         - Key: Name
+  38 └           Value: !Sub "${Proyecto}-${Ambiente}-vpc"
+────────────────────────────────────────
+
+
+
+02-security.yaml (cloudformation)
+=================================
+Tests: 49 (SUCCESSES: 43, FAILURES: 6)
+Failures: 6 (UNKNOWN: 0, LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 6)
+
+AWS-0104 (CRITICAL): Security group rule allows unrestricted egress to any IP address.
+════════════════════════════════════════
+Opening up ports to connect out to the public internet is generally to be avoided. You should restrict access to IP addresses or ranges that are explicitly required where possible.
+
+
+See https://avd.aquasec.com/misconfig/aws-0104
+────────────────────────────────────────
+ 02-security.yaml:99
+   via 02-security.yaml:95-99 (BackendSecurityGroup)
+────────────────────────────────────────
+  95           - Description: Salida HTTP (paquetes)
+  96             IpProtocol: tcp
+  97             FromPort: 80
+  98             ToPort: 80
+  99 [           CidrIp: 0.0.0.0/0
+────────────────────────────────────────
+
+
+AWS-0104 (CRITICAL): Security group rule allows unrestricted egress to any IP address.
+════════════════════════════════════════
+Opening up ports to connect out to the public internet is generally to be avoided. You should restrict access to IP addresses or ranges that are explicitly required where possible.
+
+
+See https://avd.aquasec.com/misconfig/aws-0104
+────────────────────────────────────────
+ 02-security.yaml:104
+   via 02-security.yaml:100-104 (BackendSecurityGroup)
+────────────────────────────────────────
+ 100           - Description: Salida HTTPS (paquetes, GitHub, SSM)
+ 101             IpProtocol: tcp
+ 102             FromPort: 443
+ 103             ToPort: 443
+ 104 [           CidrIp: 0.0.0.0/0
+────────────────────────────────────────
+
+
+AWS-0104 (CRITICAL): Security group rule allows unrestricted egress to any IP address.
+════════════════════════════════════════
+Opening up ports to connect out to the public internet is generally to be avoided. You should restrict access to IP addresses or ranges that are explicitly required where possible.
+
+
+See https://avd.aquasec.com/misconfig/aws-0104
+────────────────────────────────────────
+ 02-security.yaml:109
+   via 02-security.yaml:105-109 (BackendSecurityGroup)
+────────────────────────────────────────
+ 105           - Description: Salida NTP
+ 106             IpProtocol: udp
+ 107             FromPort: 123
+ 108             ToPort: 123
+ 109 [           CidrIp: 0.0.0.0/0
+────────────────────────────────────────
+
+
+AWS-0104 (CRITICAL): Security group rule allows unrestricted egress to any IP address.
+════════════════════════════════════════
+Opening up ports to connect out to the public internet is generally to be avoided. You should restrict access to IP addresses or ranges that are explicitly required where possible.
+
+
+See https://avd.aquasec.com/misconfig/aws-0104
+────────────────────────────────────────
+ 02-security.yaml:63
+   via 02-security.yaml:59-63 (FrontendSecurityGroup)
+────────────────────────────────────────
+  59           - Description: Salida HTTP (paquetes)
+  60             IpProtocol: tcp
+  61             FromPort: 80
+  62             ToPort: 80
+  63 [           CidrIp: 0.0.0.0/0
+────────────────────────────────────────
+
+
+AWS-0104 (CRITICAL): Security group rule allows unrestricted egress to any IP address.
+════════════════════════════════════════
+Opening up ports to connect out to the public internet is generally to be avoided. You should restrict access to IP addresses or ranges that are explicitly required where possible.
+
+
+See https://avd.aquasec.com/misconfig/aws-0104
+────────────────────────────────────────
+ 02-security.yaml:68
+   via 02-security.yaml:64-68 (FrontendSecurityGroup)
+────────────────────────────────────────
+  64           - Description: Salida HTTPS (paquetes, GitHub, SSM)
+  65             IpProtocol: tcp
+  66             FromPort: 443
+  67             ToPort: 443
+  68 [           CidrIp: 0.0.0.0/0
+────────────────────────────────────────
+
+
+AWS-0104 (CRITICAL): Security group rule allows unrestricted egress to any IP address.
+════════════════════════════════════════
+Opening up ports to connect out to the public internet is generally to be avoided. You should restrict access to IP addresses or ranges that are explicitly required where possible.
+
+
+See https://avd.aquasec.com/misconfig/aws-0104
+────────────────────────────────────────
+ 02-security.yaml:73
+   via 02-security.yaml:69-73 (FrontendSecurityGroup)
+────────────────────────────────────────
+  69           - Description: Salida NTP
+  70             IpProtocol: udp
+  71             FromPort: 123
+  72             ToPort: 123
+  73 [           CidrIp: 0.0.0.0/0
+────────────────────────────────────────
+
+

@@ -1,0 +1,91 @@
+@startuml er
+!include _tema.iuml
+title Modelo entidad-relación — Presencia (3FN)
+hide circle
+hide methods
+skinparam linetype ortho
+
+entity "users" as users {
+  * id : UUID <<PK>>
+  --
+  * registration_code : VARCHAR(50) <<UK>>
+  email : VARCHAR(255) <<UK>>
+  * password_hash : VARCHAR(255)
+  * full_name : VARCHAR(150)
+  * role : user_role {admin, student}
+  * is_active : BOOLEAN
+  * must_change_password : BOOLEAN
+  * created_at / updated_at : TIMESTAMPTZ
+}
+
+entity "students" as students {
+  * id : UUID <<PK>>
+  --
+  * user_id : UUID <<FK, UK>>
+  career : VARCHAR(150)
+  * created_at / updated_at : TIMESTAMPTZ
+}
+
+entity "courses (programas)" as courses {
+  * id : UUID <<PK>>
+  --
+  * code : VARCHAR(30) <<UK>>
+  * name : VARCHAR(150)
+  * period : VARCHAR(30)
+  * created_at / updated_at : TIMESTAMPTZ
+}
+
+entity "enrollments" as enrollments {
+  * id : UUID <<PK>>
+  --
+  * student_id : UUID <<FK>>
+  * course_id : UUID <<FK>>
+  UNIQUE (student_id, course_id)
+}
+
+entity "class_sessions" as sessions {
+  * id : UUID <<PK>>
+  --
+  * course_id : UUID <<FK>>
+  * session_date : DATE
+  * start_time : TIME
+  * end_time : TIME
+  topic : VARCHAR(200)
+  UNIQUE (course_id, session_date, start_time)
+  CHECK (end_time > start_time)
+}
+
+entity "attendance_records" as records {
+  * id : UUID <<PK>>
+  --
+  * session_id : UUID <<FK>>
+  * student_id : UUID <<FK>>
+  * status : attendance_status
+  * source : attendance_source
+  * marked_at : TIMESTAMPTZ
+  marked_by : UUID <<FK users>>
+  note : VARCHAR(300)
+  UNIQUE (session_id, student_id)
+}
+
+entity "import_batches" as batches {
+  * id : UUID <<PK>>
+  --
+  * kind : import_kind {students, sessions}
+  * filename : VARCHAR(255)
+  course_id : UUID <<FK>>
+  uploaded_by : UUID <<FK users>>
+  * rows_total / rows_ok / rows_failed : INT
+  * errors : JSONB
+}
+
+users ||--o| students : "es (1:1)"
+students ||--o{ enrollments : "se inscribe"
+courses ||--o{ enrollments : "tiene"
+courses ||--o{ sessions : "programa"
+sessions ||--o{ records : "registra"
+students ||--o{ records : "asiste"
+users |o--o{ records : "marca"
+courses |o--o{ batches : "destino"
+users |o--o{ batches : "sube"
+@enduml

@@ -1,0 +1,278 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Presencia - Computo (equivale a modules/ec2 + main.tf de Terraform).
+  Dos EC2 Ubuntu 24.04: frontend (Next.js + Nginx) y backend (FastAPI + PostgreSQL).
+
+Parameters:
+  Proyecto:
+    Type: String
+    Default: presencia
+    AllowedPattern: "^[a-z][a-z0-9-]{2,23}$"
+
+  Ambiente:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, qa, prod]
+
+  # Ubuntu 24.04 oficial de Canonical, resuelto por SSM (equivale a data "aws_ami")
+  UbuntuAmi:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+
+  SshPublicKey:
+    Type: String
+    Description: Contenido de la clave publica (~/.ssh/presencia-aws.pub)
+    AllowedPattern: "^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256) .+"
+
+  FrontendInstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues: [t3.micro, t3.small, t3.medium]
+
+  BackendInstanceType:
+    Type: String
+    Default: t3.micro
+    AllowedValues: [t3.micro, t3.small, t3.medium]
+
+  FrontendPrivateIp:
+    Type: String
+    Default: 10.20.1.10
+
+  BackendPrivateIp:
+    Type: String
+    Default: 10.20.1.20
+
+  FrontendVolumeSize:
+    Type: Number
+    Default: 20
+    MinValue: 8
+    MaxValue: 100
+
+  BackendVolumeSize:
+    Type: Number
+    Default: 20
+    MinValue: 8
+    MaxValue: 100
+
+  CpuCredits:
+    Type: String
+    Default: standard
+    AllowedValues: [standard, unlimited]
+
+  DetailedMonitoring:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Monitoreo detallado de CloudWatch (1 min). Tiene costo adicional.
+
+  AsignarIpPublicaBackend:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      IP publica del backend para salir a internet (apt, uv). Con "false" el backend
+      queda solo privado, pero necesita NAT Gateway o VPC endpoints para instalar paquetes.
+
+Conditions:
+  UsarMonitoreoDetallado: !Equals [!Ref DetailedMonitoring, "true"]
+  BackendConIpPublica: !Equals [!Ref AsignarIpPublicaBackend, "true"]
+
+Resources:
+  # ==========================
+  # CLAVE SSH PUBLICA
+  # ==========================
+  AdminKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub "${Proyecto}-${Ambiente}-cfn-admin"
+      PublicKeyMaterial: !Ref SshPublicKey
+
+  # ==========================
+  # PLANTILLA COMUN (IMDSv2, disco cifrado)
+  # ==========================
+  ServerLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub "${Proyecto}-${Ambiente}-cfn-lt"
+      LaunchTemplateData:
+        MetadataOptions:
+          HttpEndpoint: enabled
+          HttpTokens: required
+          HttpPutResponseHopLimit: 1
+
+  # ==========================
+  # FRONTEND EC2
+  # ==========================
+  FrontendInstance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_88
+            comment: Es el servidor web publico; recibe la IP elastica FrontendEip.
+    Properties:
+      ImageId: !Ref UbuntuAmi
+      InstanceType: !Ref FrontendInstanceType
+      KeyName: !Ref AdminKeyPair
+      IamInstanceProfile:
+        Fn::ImportValue: !Sub "${Proyecto}-${Ambiente}-InstanceProfile"
+      LaunchTemplate:
+        LaunchTemplateId: !Ref ServerLaunchTemplate
+        Version: !GetAtt ServerLaunchTemplate.LatestVersionNumber
+      EbsOptimized: true
+      Monitoring: !If [UsarMonitoreoDetallado, true, false]
+      CreditSpecification:
+        CPUCredits: !Ref CpuCredits
+      NetworkInterfaces:
+        - DeviceIndex: "0"
+          SubnetId:
+            Fn::ImportValue: !Sub "${Proyecto}-${Ambiente}-PublicSubnetId"
+          PrivateIpAddress: !Ref FrontendPrivateIp
+          AssociatePublicIpAddress: true
+          GroupSet:
+            - Fn::ImportValue: !Sub "${Proyecto}-${Ambiente}-FrontendSgId"
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: !Ref FrontendVolumeSize
+            Encrypted: true
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          set -euo pipefail
+          exec > >(tee -a /var/log/setup-frontend.log) 2>&1
+          echo "Iniciando configuracion del frontend..."
+          export DEBIAN_FRONTEND=noninteractive
+
+          apt-get update
+          apt-get install -y curl ca-certificates gnupg git nginx
+
+          # Node.js 24 (la version de frontend/.node-version) y pnpm via corepack
+          curl -fsSL https://deb.nodesource.com/setup_24.x -o /tmp/nodesource.sh
+          bash /tmp/nodesource.sh
+          apt-get install -y nodejs
+          corepack enable
+
+          mkdir -p /opt/presencia/frontend
+          systemctl enable --now nginx
+
+          node --version
+          nginx -v
+          echo "Frontend preparado correctamente."
+      Tags:
+        - Key: Name
+          Value: !Sub "${Proyecto}-${Ambiente}-frontend"
+        - Key: Role
+          Value: frontend
+
+  # IP elastica del frontend (la URL publica de la web)
+  FrontendEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref FrontendInstance
+      Tags:
+        - Key: Name
+          Value: !Sub "${Proyecto}-${Ambiente}-frontend-eip"
+
+  # ==========================
+  # BACKEND EC2
+  # ==========================
+  BackendInstance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_88
+            comment: Sin NAT Gateway (costo) el backend necesita IP publica para salir; la API (8000) solo acepta al SG del frontend.
+    Properties:
+      ImageId: !Ref UbuntuAmi
+      InstanceType: !Ref BackendInstanceType
+      KeyName: !Ref AdminKeyPair
+      IamInstanceProfile:
+        Fn::ImportValue: !Sub "${Proyecto}-${Ambiente}-InstanceProfile"
+      LaunchTemplate:
+        LaunchTemplateId: !Ref ServerLaunchTemplate
+        Version: !GetAtt ServerLaunchTemplate.LatestVersionNumber
+      EbsOptimized: true
+      Monitoring: !If [UsarMonitoreoDetallado, true, false]
+      CreditSpecification:
+        CPUCredits: !Ref CpuCredits
+      NetworkInterfaces:
+        - DeviceIndex: "0"
+          SubnetId:
+            Fn::ImportValue: !Sub "${Proyecto}-${Ambiente}-PublicSubnetId"
+          PrivateIpAddress: !Ref BackendPrivateIp
+          AssociatePublicIpAddress: !If [BackendConIpPublica, true, false]
+          GroupSet:
+            - Fn::ImportValue: !Sub "${Proyecto}-${Ambiente}-BackendSgId"
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: !Ref BackendVolumeSize
+            Encrypted: true
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          set -euo pipefail
+          exec > >(tee -a /var/log/setup-backend.log) 2>&1
+          echo "Iniciando configuracion del backend..."
+          export DEBIAN_FRONTEND=noninteractive
+
+          apt-get update
+          apt-get install -y python3 python3-venv python3-dev build-essential \
+            git curl ca-certificates libpq-dev postgresql postgresql-contrib
+
+          # uv instala Python 3.14 (backend/.python-version) y las dependencias
+          curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+
+          mkdir -p /opt/presencia/backend
+          systemctl enable --now postgresql
+
+          uv --version
+          psql --version
+          echo "Backend preparado correctamente."
+      Tags:
+        - Key: Name
+          Value: !Sub "${Proyecto}-${Ambiente}-backend"
+        - Key: Role
+          Value: backend
+
+Outputs:
+  FrontendInstanceId:
+    Value: !Ref FrontendInstance
+
+  FrontendPublicIp:
+    Description: IP elastica del frontend
+    Value: !Ref FrontendEip
+
+  FrontendPrivateIp:
+    Value: !GetAtt FrontendInstance.PrivateIp
+
+  BackendInstanceId:
+    Value: !Ref BackendInstance
+
+  BackendPublicIp:
+    Condition: BackendConIpPublica
+    Value: !GetAtt BackendInstance.PublicIp
+
+  BackendPrivateIp:
+    Value: !GetAtt BackendInstance.PrivateIp
+
+  ApiUrlInterna:
+    Description: URL privada de FastAPI (API_URL del frontend)
+    Value: !Sub "http://${BackendInstance.PrivateIp}:8000"
+
+  SshFrontend:
+    Value: !Sub "ssh -i ~/.ssh/presencia-aws ubuntu@${FrontendEip}"
+
+  SshBackend:
+    Condition: BackendConIpPublica
+    Value: !Sub "ssh -i ~/.ssh/presencia-aws ubuntu@${BackendInstance.PublicIp}"
+
+  UrlAplicacion:
+    Value: !Sub "http://${FrontendEip}"

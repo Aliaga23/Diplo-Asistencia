@@ -1,0 +1,26 @@
+# EC2 frontend → /etc/systemd/system/presencia-frontend.service (instalación manual:
+# docs/despliegue-clase2.md, paso 6). Ejecuta el build `standalone` de Next.js.
+[Unit]
+Description=Presencia - Next.js (frontend)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=presencia
+Group=presencia
+WorkingDirectory=/opt/presencia/frontend/.next/standalone
+# API_URL=http://<IP privada del backend>:8000 (salida api_url_interna de OpenTofu).
+EnvironmentFile=/etc/presencia/frontend.env
+# Solo escucha en local: el único acceso público es Nginx.
+Environment=NODE_ENV=production PORT=3000 HOSTNAME=127.0.0.1 NEXT_TELEMETRY_DISABLED=1
+ExecStart=/usr/local/bin/node server.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

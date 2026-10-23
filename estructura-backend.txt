@@ -1,0 +1,73 @@
+Listado de rutas de carpetas
+El número de serie del volumen es 66AC-95C3
+C:\UAGRM\DIPLOMADO\MOD-2\SOFTWARE_ASISTENCIA\DIPLO-ASISTENCIA\BACKEND
+|   .dockerignore
+|   .env.example
+|   .python-version
+|   alembic.ini
+|   docker-entrypoint.sh
+|   Dockerfile
+|   pyproject.toml
+|   uv.lock
+|   
++---alembic
+|   |   env.py
+|   |   README
+|   |   script.py.mako
+|   |   
+|   \---versions
+|           20261013_a9548b43a89c_esquema_inicial.py
+|           
++---app
+|   |   main.py
+|   |   seed.py
+|   |   __init__.py
+|   |   
+|   +---api
+|   |   |   __init__.py
+|   |   |   
+|   |   \---v1
+|   |           attendance.py
+|   |           auth.py
+|   |           courses.py
+|   |           dashboard.py
+|   |           imports.py
+|   |           students.py
+|   |           __init__.py
+|   |           
+|   +---core
+|   |       config.py
+|   |       deps.py
+|   |       security.py
+|   |       timeutils.py
+|   |       __init__.py
+|   |       
+|   +---db
+|   |       base.py
+|   |       session.py
+|   |       __init__.py
+|   |       
+|   +---models
+|   |       attendance.py
+|   |       course.py
+|   |       import_batch.py
+|   |       user.py
+|   |       __init__.py
+|   |       
+|   +---schemas
+|   |       common.py
+|   |       __init__.py
+|   |       
+|   \---services
+|           attendance.py
+|           auth.py
+|           imports.py
+|           __init__.py
+|           
+\---tests
+        conftest.py
+        test_attendance.py
+        test_imports.py
+        test_programs.py
+        __init__.py
+        
