@@ -78,6 +78,11 @@ Parameters:
     AllowedValues: ["true", "false"]
     Description: Desplegar segunda instancia EC2 (Backend). Integrante 1 puede usar false y el Integrante 2 true.
 
+  TemplateBucketUrl:
+    Type: String
+    Default: "https://cfn-presencia-sebastianmlz.s3.us-east-1.amazonaws.com"
+    Description: URL base de S3 donde residen las plantillas secundarias.
+
 Conditions:
   BackendHabilitado: !Equals [!Ref CrearBackend, "true"]
 
@@ -89,7 +94,7 @@ Resources:
   Red:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: red.yaml
+      TemplateURL: !Sub "${TemplateBucketUrl}/red.yaml"
       Parameters:
         Proyecto: !Ref Proyecto
         Ambiente: !Ref Ambiente
@@ -103,7 +108,7 @@ Resources:
   Seguridad:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: seguridad.yaml
+      TemplateURL: !Sub "${TemplateBucketUrl}/seguridad.yaml"
       Parameters:
         Proyecto: !Ref Proyecto
         Ambiente: !Ref Ambiente
@@ -117,7 +122,7 @@ Resources:
   Servidor:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: servidor.yaml
+      TemplateURL: !Sub "${TemplateBucketUrl}/servidor.yaml"
       Parameters:
         Proyecto: !Ref Proyecto
         Ambiente: !Ref Ambiente

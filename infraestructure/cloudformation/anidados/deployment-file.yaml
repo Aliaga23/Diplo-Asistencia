@@ -1,7 +1,3 @@
-# Archivo de despliegue para CloudFormation Git Sync
-# Permite vincular este repositorio en la consola de AWS CloudFormation (Sync from Git)
-# y desplegar automaticamente cuando se haga push a GitHub.
-
 template-file-path: infraestructure/cloudformation/anidados/main.yaml
 parameters:
   Proyecto: asistencia
@@ -14,6 +10,7 @@ parameters:
   AsignarIpPublicaBackend: "true"
   DatosDemo: "true"
   CrearBackend: "false"
+  TemplateBucketUrl: "https://cfn-presencia-sebastianmlz.s3.us-east-1.amazonaws.com"
   SshPublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPqgE80/rJ98L5mP0zH+uB5k1C4vN3Zl7qL0yX1pW8r2 asistencia-dev"
 tags:
   Proyecto: asistencia
