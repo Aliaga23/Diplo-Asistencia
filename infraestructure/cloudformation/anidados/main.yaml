@@ -72,11 +72,17 @@ Parameters:
     AllowedValues: ["true", "false"]
     Description: Cargar datos de prueba de estudiantes y sesiones.
 
+  CrearFrontend:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Desplegar primera instancia EC2 (Frontend). Integrante 1.
+
   CrearBackend:
     Type: String
     Default: "true"
     AllowedValues: ["true", "false"]
-    Description: Desplegar segunda instancia EC2 (Backend). Integrante 1 puede usar false y el Integrante 2 true.
+    Description: Desplegar segunda instancia EC2 (Backend). Integrante 2.
 
   TemplateBucketUrl:
     Type: String
@@ -84,6 +90,7 @@ Parameters:
     Description: URL base de S3 donde residen las plantillas secundarias.
 
 Conditions:
+  FrontendHabilitado: !Equals [!Ref CrearFrontend, "true"]
   BackendHabilitado: !Equals [!Ref CrearBackend, "true"]
 
 Resources:
@@ -137,15 +144,18 @@ Resources:
         BackendInstanceType: !Ref BackendInstanceType
         AsignarIpPublicaBackend: !Ref AsignarIpPublicaBackend
         DatosDemo: !Ref DatosDemo
+        CrearFrontend: !Ref CrearFrontend
         CrearBackend: !Ref CrearBackend
 
 Outputs:
   UrlAplicacion:
     Description: Abrir en el navegador (esperar unos 10-15 minutos tras CREATE_COMPLETE para que compile Next.js)
+    Condition: FrontendHabilitado
     Value: !GetAtt Servidor.Outputs.UrlAplicacion
 
   FrontendPublicIp:
     Description: IP publica elastica del frontend
+    Condition: FrontendHabilitado
     Value: !GetAtt Servidor.Outputs.FrontendPublicIp
 
   BackendPublicIp:
@@ -155,6 +165,7 @@ Outputs:
 
   SshFrontend:
     Description: Comando de conexion SSH al frontend
+    Condition: FrontendHabilitado
     Value: !GetAtt Servidor.Outputs.SshFrontend
 
   SshBackend:

@@ -108,13 +108,20 @@ Parameters:
     AllowedValues: ["true", "false"]
     Description: Carga estudiantes, sesiones y asistencia de ejemplo (app.seed --demo).
 
+  CrearFrontend:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Crear primera instancia EC2 (Frontend). Integrante 1.
+
   CrearBackend:
     Type: String
     Default: "true"
     AllowedValues: ["true", "false"]
-    Description: Crear segunda instancia EC2 (Backend). Integrante 1 puede usar false y el Integrante 2 true.
+    Description: Crear segunda instancia EC2 (Backend). Integrante 2.
 
 Conditions:
+  DesplegarFrontend: !Equals [!Ref CrearFrontend, "true"]
   DesplegarBackend: !Equals [!Ref CrearBackend, "true"]
   CargarDemo: !Equals [!Ref DatosDemo, "true"]
   UsarMonitoreoDetallado: !Equals [!Ref DetailedMonitoring, "true"]
@@ -150,6 +157,7 @@ Resources:
   # ==========================
   FrontendInstance:
     Type: AWS::EC2::Instance
+    Condition: DesplegarFrontend
     Metadata:
       checkov:
         skip:
@@ -279,6 +287,7 @@ Resources:
   # IP elastica del frontend (la URL publica de la web)
   FrontendEip:
     Type: AWS::EC2::EIP
+    Condition: DesplegarFrontend
     Properties:
       Domain: vpc
       InstanceId: !Ref FrontendInstance
@@ -396,13 +405,16 @@ Resources:
 
 Outputs:
   FrontendInstanceId:
+    Condition: DesplegarFrontend
     Value: !Ref FrontendInstance
 
   FrontendPublicIp:
+    Condition: DesplegarFrontend
     Description: IP elastica del frontend
     Value: !Ref FrontendEip
 
   FrontendPrivateIp:
+    Condition: DesplegarFrontend
     Value: !GetAtt FrontendInstance.PrivateIp
 
   BackendInstanceId:
@@ -423,6 +435,7 @@ Outputs:
     Value: !Sub "http://${BackendInstance.PrivateIp}:8000"
 
   SshFrontend:
+    Condition: DesplegarFrontend
     Value: !Sub "ssh -i ~/.ssh/presencia-aws ubuntu@${FrontendEip}"
 
   SshBackend:
@@ -430,5 +443,6 @@ Outputs:
     Value: !Sub "ssh -i ~/.ssh/presencia-aws ubuntu@${BackendInstance.PublicIp}"
 
   UrlAplicacion:
+    Condition: DesplegarFrontend
     Description: La web (lista unos 10-15 min despues de CREATE_COMPLETE)
     Value: !Sub "http://${FrontendEip}"

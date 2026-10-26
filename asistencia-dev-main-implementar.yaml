@@ -9,6 +9,7 @@ parameters:
   BackendInstanceType: t3.micro
   AsignarIpPublicaBackend: "true"
   DatosDemo: "true"
+  CrearFrontend: "false"
   CrearBackend: "false"
   TemplateBucketUrl: "https://cfn-presencia-sebastianmlz.s3.us-east-1.amazonaws.com"
   SshPublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPqgE80/rJ98L5mP0zH+uB5k1C4vN3Zl7qL0yX1pW8r2 asistencia-dev"
