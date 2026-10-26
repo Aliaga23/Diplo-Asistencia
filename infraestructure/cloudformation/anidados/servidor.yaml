@@ -108,10 +108,19 @@ Parameters:
     AllowedValues: ["true", "false"]
     Description: Carga estudiantes, sesiones y asistencia de ejemplo (app.seed --demo).
 
+  CrearBackend:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Crear segunda instancia EC2 (Backend). Integrante 1 puede usar false y el Integrante 2 true.
+
 Conditions:
+  DesplegarBackend: !Equals [!Ref CrearBackend, "true"]
   CargarDemo: !Equals [!Ref DatosDemo, "true"]
   UsarMonitoreoDetallado: !Equals [!Ref DetailedMonitoring, "true"]
-  BackendConIpPublica: !Equals [!Ref AsignarIpPublicaBackend, "true"]
+  BackendConIpPublica: !And
+    - !Condition DesplegarBackend
+    - !Equals [!Ref AsignarIpPublicaBackend, "true"]
 
 Resources:
   # ==========================
@@ -278,10 +287,11 @@ Resources:
           Value: !Sub "${Proyecto}-${Ambiente}-frontend-eip"
 
   # ==========================
-  # BACKEND EC2
+  # BACKEND EC2 (Segunda Instancia)
   # ==========================
   BackendInstance:
     Type: AWS::EC2::Instance
+    Condition: DesplegarBackend
     Metadata:
       checkov:
         skip:
@@ -396,6 +406,7 @@ Outputs:
     Value: !GetAtt FrontendInstance.PrivateIp
 
   BackendInstanceId:
+    Condition: DesplegarBackend
     Value: !Ref BackendInstance
 
   BackendPublicIp:
@@ -403,9 +414,11 @@ Outputs:
     Value: !GetAtt BackendInstance.PublicIp
 
   BackendPrivateIp:
+    Condition: DesplegarBackend
     Value: !GetAtt BackendInstance.PrivateIp
 
   ApiUrlInterna:
+    Condition: DesplegarBackend
     Description: URL privada de FastAPI (API_URL del frontend)
     Value: !Sub "http://${BackendInstance.PrivateIp}:8000"
 

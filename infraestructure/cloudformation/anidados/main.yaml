@@ -72,6 +72,15 @@ Parameters:
     AllowedValues: ["true", "false"]
     Description: Cargar datos de prueba de estudiantes y sesiones.
 
+  CrearBackend:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Desplegar segunda instancia EC2 (Backend). Integrante 1 puede usar false y el Integrante 2 true.
+
+Conditions:
+  BackendHabilitado: !Equals [!Ref CrearBackend, "true"]
+
 Resources:
   # ========================================================
   # STACK ANIDADO 1: RED
@@ -123,6 +132,7 @@ Resources:
         BackendInstanceType: !Ref BackendInstanceType
         AsignarIpPublicaBackend: !Ref AsignarIpPublicaBackend
         DatosDemo: !Ref DatosDemo
+        CrearBackend: !Ref CrearBackend
 
 Outputs:
   UrlAplicacion:
@@ -135,6 +145,7 @@ Outputs:
 
   BackendPublicIp:
     Description: IP publica del servidor backend
+    Condition: BackendHabilitado
     Value: !GetAtt Servidor.Outputs.BackendPublicIp
 
   SshFrontend:
@@ -143,10 +154,12 @@ Outputs:
 
   SshBackend:
     Description: Comando de conexion SSH al backend
+    Condition: BackendHabilitado
     Value: !GetAtt Servidor.Outputs.SshBackend
 
   ApiUrlInterna:
     Description: URL privada interna de FastAPI
+    Condition: BackendHabilitado
     Value: !GetAtt Servidor.Outputs.ApiUrlInterna
 
   VpcId:
