@@ -30,7 +30,7 @@ Parameters:
 
   RepoUrl:
     Type: String
-    Default: https://github.com/JuanaBP/presencia-aws.git
+    Default: https://github.com/sebastianmlz/presencia-aws.git
     Description: URL HTTPS del repositorio PUBLICO de GitHub con frontend/ y backend/
     AllowedPattern: "^https://.+\\.git$"
     ConstraintDescription: Debe ser una URL https que termine en .git

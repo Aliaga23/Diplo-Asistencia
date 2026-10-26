@@ -7,7 +7,7 @@
 # Todo se empaqueta y despliega desde anidados/main.yaml (red -> seguridad -> servidor).
 param(
   [string]$AdminCidr = "",
-  [string]$RepoUrl = "https://github.com/JuanaBP/presencia-aws.git",
+  [string]$RepoUrl = "https://github.com/sebastianmlz/presencia-aws.git",
   [string]$RepoBranch = "main",
   [string]$Proyecto = "asistencia",
   [string]$Ambiente = "dev",

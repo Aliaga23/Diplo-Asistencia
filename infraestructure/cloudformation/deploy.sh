@@ -10,7 +10,7 @@ cd "$(dirname "$0")"
 PROYECTO=${PROYECTO:-asistencia}
 AMBIENTE=${AMBIENTE:-dev}
 REGION=${AWS_REGION:-us-east-1}
-REPO_URL=${REPO_URL:-https://github.com/JuanaBP/presencia-aws.git}
+REPO_URL=${REPO_URL:-https://github.com/sebastianmlz/presencia-aws.git}
 REPO_BRANCH=${REPO_BRANCH:-main}
 SSH_PUB=${SSH_PUB:-$HOME/.ssh/presencia-aws.pub}
 STACK_NAME="$PROYECTO-$AMBIENTE-main"
