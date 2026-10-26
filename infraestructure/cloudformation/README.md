@@ -1,138 +1,134 @@
-# Presencia · Infraestructura con CloudFormation
+# Presencia · Infraestructura con CloudFormation (Stacks Anidados)
 
-La misma infraestructura de `infraestructure/` (Terraform), ahora con la IaC nativa de AWS:
+La misma infraestructura de `infraestructure/` (Terraform), implementada con la IaC nativa de AWS utilizando **Stacks Anidados (Nested Stacks)**:
 **2 EC2 Ubuntu 24.04**, una para el **frontend** (Next.js + Nginx) y otra para el **backend**
-(FastAPI + PostgreSQL), con sus **security groups** de mínimo privilegio.
+(FastAPI + PostgreSQL), con VPC dedicada, Flow Logs con KMS, y **security groups** de mínimo privilegio.
 
-## Estructura (un stack por grupo, igual que los módulos de Terraform)
+---
+
+## 📁 Estructura del Proyecto
+
+Todos los templates anidados conviven en la misma carpeta (`anidados/`), lo que permite que el stack principal (`main.yaml`) referencie a los hijos directamente por nombre de archivo relativo:
 
 ```
 cloudformation/
-├── templates/
-│   ├── 01-network.yaml    → modules/network   VPC, IGW, subred pública, rutas, VPC Flow Logs (KMS)
-│   ├── 02-security.yaml   → modules/security  SG frontend, SG backend, rol IAM SSM  (+ iam.tf)
-│   └── 03-compute.yaml    → modules/ec2       Key pair, 2 EC2, IP elástica, UserData (+ main.tf)
-├── deploy.ps1 / deploy.sh  despliegue en orden (red → seguridad → cómputo)
-├── destroy.sh              borrado en orden inverso
-├── scan.sh                 cfn-lint + 3 escáneres de seguridad (Docker)
-└── reportes/
-    ├── 1-antes/            primera pasada de los escáneres
-    └── 2-despues/          después de corregir
+├── anidados/
+│   ├── main.yaml          → Stack Padre (Orquestador principal)
+│   ├── red.yaml           → Stack Hijo 1: VPC, IGW, subred pública, rutas, Flow Logs + KMS
+│   ├── seguridad.yaml     → Stack Hijo 2: SG frontend, SG backend, rol IAM SSM
+│   ├── servidor.yaml      → Stack Hijo 3: Key pair, Launch template, 2 EC2, EIP, UserData
+│   └── deployment-file.yaml → Configuración para CloudFormation Git Sync
+├── deploy.ps1 / deploy.sh    → Empaqueta (S3) y despliega todo ejecutando solo main.yaml
+├── destroy.ps1 / destroy.sh  → Borra el stack principal y sus hijos en cascada
+├── scan.sh                   → cfn-lint + 3 escáneres de seguridad (Docker)
+└── reportes/                 → Auditorías de seguridad (Checkov, Trivy, cfn-nag)
 ```
 
-Los stacks se conectan con **Export / Fn::ImportValue** (el equivalente a `terraform_remote_state`):
+---
 
-| Stack | Exporta | Lo usa |
-|---|---|---|
-| `presencia-dev-network` | `VpcId`, `PublicSubnetId` | security, compute |
-| `presencia-dev-security` | `FrontendSgId`, `BackendSgId`, `InstanceProfile` | compute |
-| `presencia-dev-compute` | — (outputs: IPs, URL, comandos SSH) | — |
+## 🔗 Flujo de Datos entre Stacks Anidados
 
-## Security groups
+A diferencia de los stacks desacoplados con `Fn::ImportValue` (que crean bloqueos globales entre stacks), los **stacks anidados** pasan datos mediante **parámetros directos** usando `!GetAtt`:
 
-| SG | Entrada | Salida |
-|---|---|---|
-| **frontend** | 80 y 443 desde `0.0.0.0/0` · 22 solo desde `AdminCidr` | 80, 443, 123/udp a internet · **8000 solo al SG backend** |
-| **backend** | **8000 solo desde el SG frontend** · 22 solo desde `AdminCidr` | 80, 443, 123/udp a internet |
+```mermaid
+flowchart TD
+    M["main.yaml (Stack Padre)"] -->|1. Despliega| R["red.yaml"]
+    R -->|VpcId, PublicSubnetId| M
+    M -->|2. Pasa VpcId| S["seguridad.yaml"]
+    S -->|FrontendSgId, BackendSgId, InstanceProfile| M
+    M -->|3. Pasa SubnetId + SGs + IAM Profile| C["servidor.yaml"]
+    C -->|UrlWeb, IPs públicas, SSH| M
+```
 
-- La API (FastAPI :8000) nunca se expone a internet: la regla referencia al SG del frontend, no a una IP.
-- Las salidas se declaran en línea para **reemplazar** la regla por defecto de AWS (todo el tráfico a todos lados).
-- Las reglas frontend ↔ backend van como recursos separados (`SecurityGroupIngress` / `SecurityGroupEgress`) para evitar la dependencia circular entre los dos grupos.
+| Stack Hijo | Entradas (Parámetros) | Salidas (Outputs) | Destino en `main.yaml` |
+|---|---|---|---|
+| `Red` (`red.yaml`) | `VpcCidr`, `PublicSubnetCidr` | `VpcId`, `PublicSubnetId` | Se pasan a `Seguridad` y `Servidor` |
+| `Seguridad` (`seguridad.yaml`) | `VpcId`, `AdminCidr` | `FrontendSecurityGroupId`, `BackendSecurityGroupId`, `InstanceProfileName` | Se pasan a `Servidor` |
+| `Servidor` (`servidor.yaml`) | `PublicSubnetId`, `FrontendSecurityGroupId`, `BackendSecurityGroupId`, `InstanceProfileName`, `RepoUrl` | `UrlAplicacion`, `FrontendPublicIp`, `BackendPublicIp`, comandos SSH | Salidas finales de `main.yaml` |
 
-## Instancias
+---
 
-| | Frontend | Backend |
-|---|---|---|
-| Tipo | t3.small | t3.micro |
-| IP privada | 10.20.1.10 | 10.20.1.20 |
-| IP pública | Elástica (fija) | Automática (parámetro `AsignarIpPublicaBackend`) |
-| Disco | 20 GiB gp3 cifrado | 20 GiB gp3 cifrado |
-| UserData | Swap 2 GB, Node.js 24, clona el repo, `pnpm build`, servicio `presencia-frontend` (:3000), Nginx :80 → :3000 | PostgreSQL con clave aleatoria, clona el repo, `uv sync`, Alembic, seed, servicio `presencia-backend` (:8000) |
+## 📦 Empaquetado y Despliegue ("Todo en un paquete")
 
-Las dos usan **IMDSv2 obligatorio** (vía Launch Template), créditos T3 `standard`, rol IAM con
-`AmazonSSMManagedInstanceCore` (acceso por Session Manager) y la AMI oficial de Canonical
-resuelta por SSM (equivale al `data "aws_ami"` de Terraform).
+CloudFormation exige que los templates anidados (`red.yaml`, `seguridad.yaml`, `servidor.yaml`) estén disponibles en un bucket de Amazon S3. 
 
-> Node 24 y Python 3.14 son las versiones que piden `frontend/.node-version` y
-> `backend/.python-version`. El `frontend.sh` de Terraform instala Node 22.
+El comando nativo de AWS para empaquetar y subir automáticamente todas las plantillas anidadas es:
 
-## Desplegar
+```bash
+# 1. Empaquetar (sube los templates locales a S3 y genera packaged.yaml con los TemplateURL finales)
+aws cloudformation package \
+  --template-file anidados/main.yaml \
+  --s3-bucket <nombre-bucket> \
+  --output-template-file anidados/packaged.yaml
 
-El código sale de un repositorio **público** de GitHub con `frontend/` y `backend/` en la raíz
-(parámetro `RepoUrl`). Las credenciales de PostgreSQL y el `JWT_SECRET` se generan dentro del
-backend al arrancar: no están en el template ni en Git. La web queda lista unos 10–15 minutos
-después de `CREATE_COMPLETE` (progreso en `/var/log/setup-frontend.log` y `setup-backend.log`).
+# 2. Desplegar el main
+aws cloudformation deploy \
+  --template-file anidados/packaged.yaml \
+  --stack-name asistencia-dev-main \
+  --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
+  --parameter-overrides AdminCidr="TU.IP/32"
+```
 
-Requisitos: AWS CLI v2 configurado (`aws configure`) y la clave `~/.ssh/presencia-aws.pub`.
+### Despliegue automatizado con 1 solo comando
+
+Los scripts incluidos (`deploy.ps1` y `deploy.sh`) crean el bucket S3 automáticamente si no existe, empaquetan los templates y ejecutan el despliegue del stack `main`:
 
 ```powershell
-# Ver los cambios sin aplicarlos (change set = terraform plan)
-.\deploy.ps1 -AdminCidr "TU.IP/32" -RepoUrl "https://github.com/USUARIO/presencia-aws.git" -Plan
+# En Windows (PowerShell):
+.\deploy.ps1 -AdminCidr "TU.IP/32"
 
-# Aplicar
-.\deploy.ps1 -AdminCidr "TU.IP/32" -RepoUrl "https://github.com/USUARIO/presencia-aws.git"
+# Modo Plan (Change Set sin aplicar cambios):
+.\deploy.ps1 -AdminCidr "TU.IP/32" -Plan
 ```
 
 ```bash
-ADMIN_CIDR=TU.IP/32 REPO_URL=https://github.com/USUARIO/presencia-aws.git ./deploy.sh
+# En Linux / macOS / Git Bash:
+ADMIN_CIDR=TU.IP/32 ./deploy.sh
+```
+
+---
+
+## 🔄 Sincronización con Git (CloudFormation Git Sync)
+
+El proyecto incluye el archivo `anidados/deployment-file.yaml` compatible con la función **Sync from Git** de la consola de CloudFormation:
+
+1. Ve a la consola de **AWS CloudFormation** → **Stacks** → **Create stack** → **With new resources (standard)**.
+2. Selecciona **Sync from Git**.
+3. Conecta tu repositorio de GitHub: `https://github.com/JuanaBP/presencia-aws.git` en la rama `main`.
+4. Selecciona el archivo de despliegue: `infraestructure/cloudformation/anidados/deployment-file.yaml`.
+5. CloudFormation sincronizará y actualizará el stack automáticamente con cada commit en Git.
+
+> [!NOTE]
+> Al desplegar stacks anidados mediante Git Sync directo desde la consola, AWS requiere que los templates referenciados estén accesibles o sincronizados. Para un flujo GitOps 100% automático, también se incluye el workflow de CI en `.github/workflows/cfn-security.yml`.
+
+---
+
+## 🗑️ Eliminación de Recursos
+
+Con stacks anidados, no necesitas borrar cada recurso o stack hijo por separado. Al eliminar el stack principal `main`, CloudFormation elimina automáticamente todos los stacks hijos en orden inverso (`Servidor` → `Seguridad` → `Red`):
+
+```powershell
+# En Windows:
+.\destroy.ps1
+```
+
+```bash
+# En Linux / macOS:
 ./destroy.sh
 ```
 
-Tu IP pública: `curl ifconfig.me`. Los nombres llevan `cfn` (key pair, launch template) para no
-chocar con lo que crea Terraform si conviven en la misma cuenta.
+---
 
-| Terraform | CloudFormation |
-|---|---|
-| `terraform validate` | `aws cloudformation validate-template` |
-| `terraform plan` | `deploy --no-execute-changeset` |
-| `terraform apply` | `deploy` |
-| `terraform output` | `describe-stacks --query Stacks[0].Outputs` |
-| `terraform destroy` | `delete-stack` (`destroy.sh`) |
+## 🛡️ Escaneos de Seguridad
 
-## Escaneos de seguridad
+Las plantillas anidadas cumplen con las normativas de seguridad de infraestructura:
+- IMDSv2 obligatorio.
+- Cifrado en reposo gp3 con KMS.
+- VPC Flow Logs activos con retención y clave dedicada.
+- Security Groups de mínimo privilegio (puerto 8000 de FastAPI solo accesible desde el frontend).
 
+Para ejecutar los escáneres locales:
 ```bash
-./scan.sh            # con Docker
+./scan.sh
 ```
-
-o sin Docker:
-
-```bash
-pip install cfn-lint checkov
-cfn-lint templates/*.yaml
-checkov -d templates --framework cloudformation --compact
-trivy config --exit-code 1 templates
-cfn_nag_scan --input-path templates --fail-on-warnings      # gem install cfn-nag
-```
-
-También corren en cada PR con GitHub Actions: copia `ci/cfn-security.yml` a `.github/workflows/`.
-
-### Resultados
-
-| Herramienta | Antes | Después |
-|---|---|---|
-| cfn-lint (validación) | 0 errores | 0 errores |
-| **1. Checkov** | 23 ok · **3 fallos** | 36 ok · 0 fallos · 3 excepciones justificadas |
-| **2. Trivy** | **7 fallos** (6 CRITICAL, 1 MEDIUM) | 0 fallos · 6 excepciones justificadas |
-| **3. cfn-nag** | **8 warnings** | 0 warnings · 4 excepciones justificadas |
-
-### Hallazgos corregidos
-
-| Hallazgo | Escáner | Corrección |
-|---|---|---|
-| VPC sin Flow Logs | Trivy AWS-0178 · cfn-nag W60 | `AWS::EC2::FlowLog` a CloudWatch Logs, retención 30 días |
-| Log group sin cifrar (apareció al añadir los Flow Logs) | Trivy AWS-0017 · cfn-nag W84 | Clave KMS propia con rotación anual |
-| Recursos con nombre fijo (impide reemplazos) | cfn-nag W28 | Se quitó `GroupName` / `RoleName`; el nombre queda en el tag `Name` |
-| Backend siempre con IP pública | Checkov CKV_AWS_88 | Ahora es parámetro (`AsignarIpPublicaBackend`) |
-
-### Excepciones aceptadas (documentadas en el `Metadata` de cada recurso)
-
-| Hallazgo | Por qué se acepta |
-|---|---|
-| Frontend con 80/443 abiertos a `0.0.0.0/0` (CKV_AWS_260, W2, W9) | Es el servidor web público; no hay ALB delante |
-| Salida a internet en 80/443/123 (AWS-0104, W5) | apt, NodeSource, GitHub, PyPI y SSM; sin NAT Gateway ni VPC endpoints no hay otra ruta. Ya se limitó a esos 3 puertos |
-| EC2 con IP pública (CKV_AWS_88) | Frontend: es la web. Backend: sin NAT (≈ USD 32/mes) necesita IP para salir; su API solo acepta al SG del frontend |
-
-Para cerrar también las dos últimas en producción: ALB con certificado ACM delante del
-frontend, backend en subred privada con NAT Gateway o VPC endpoints, y quitar el puerto 22
-usando solo Session Manager.
+O mediante el pipeline de GitHub Actions en `.github/workflows/cfn-security.yml`.

@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# Borra los stacks en orden inverso (computo -> seguridad -> red).
-# Los Exports en uso impiden borrar la red antes que las instancias.
+# Borra el stack principal y automaticamente todos los stacks anidados (servidor -> seguridad -> red).
 set -euo pipefail
 PROYECTO=${PROYECTO:-asistencia}
 AMBIENTE=${AMBIENTE:-dev}
 REGION=${AWS_REGION:-us-east-1}
+STACK_NAME="$PROYECTO-$AMBIENTE-main"
 
-for s in compute security network; do
-  echo "==> borrando $PROYECTO-$AMBIENTE-$s"
-  aws cloudformation delete-stack --region "$REGION" --stack-name "$PROYECTO-$AMBIENTE-$s"
-  aws cloudformation wait stack-delete-complete --region "$REGION" --stack-name "$PROYECTO-$AMBIENTE-$s"
-done
-echo "Listo."
+echo "==> Borrando stack principal y anidados: $STACK_NAME..."
+aws cloudformation delete-stack --region "$REGION" --stack-name "$STACK_NAME"
+echo "Esperando que se complete el borrado..."
+aws cloudformation wait stack-delete-complete --region "$REGION" --stack-name "$STACK_NAME"
+echo "Listo. Infraestructura eliminada con exito."

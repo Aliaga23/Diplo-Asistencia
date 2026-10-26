@@ -28,20 +28,20 @@ jobs:
         run: pipx install cfn-lint && pipx install checkov
 
       - name: cfn-lint (validación)
-        run: cfn-lint templates/*.yaml
+        run: cfn-lint anidados/*.yaml
 
       - name: "Escaneo 1: Checkov"
         if: always()
-        run: checkov -d templates --framework cloudformation --compact
+        run: checkov -d anidados --framework cloudformation --compact
 
       - name: "Escaneo 2: Trivy"
         if: always()
         run: |
           docker run --rm -v "$PWD:/data" -w /data aquasec/trivy:0.69.3 \
-            config --exit-code 1 templates
+            config --exit-code 1 anidados
 
       - name: "Escaneo 3: cfn-nag"
         if: always()
         run: |
           docker run --rm --entrypoint cfn_nag_scan -v "$PWD:/data" -w /data stelligent/cfn_nag \
-            --input-path templates --fail-on-warnings
+            --input-path anidados --fail-on-warnings

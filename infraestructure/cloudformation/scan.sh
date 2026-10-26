@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Corre los escaneos de seguridad sobre templates/ y guarda los reportes en reportes/2-despues/.
+# Corre los escaneos de seguridad sobre anidados/ y guarda los reportes en reportes/2-despues/.
 #   - cfn-lint   : validacion de sintaxis y propiedades (no es escaner de seguridad)
 #   - Checkov    : escaner de seguridad 1
 #   - Trivy      : escaner de seguridad 2
@@ -12,19 +12,19 @@ OUT=reportes/2-despues
 mkdir -p "$OUT"
 RC=0
 
-echo "== cfn-lint";  docker run --rm -v "$PWD:/data" -w /data ghcr.io/aws-cloudformation/cfn-lint:latest templates/*.yaml \
+echo "== cfn-lint";  docker run --rm -v "$PWD:/data" -w /data ghcr.io/aws-cloudformation/cfn-lint:latest anidados/*.yaml \
   | tee "$OUT/cfn-lint.txt" || RC=1
 
 echo "== Checkov";   docker run --rm -v "$PWD:/data" -w /data bridgecrew/checkov:3 \
-  -d templates --framework cloudformation --compact \
+  -d anidados --framework cloudformation --compact \
   | tee "$OUT/checkov.txt" || RC=1
 
 echo "== Trivy";     docker run --rm -v "$PWD:/data" -w /data aquasec/trivy:0.69.3 \
-  config --exit-code 1 templates \
+  config --exit-code 1 anidados \
   | tee "$OUT/trivy.txt" || RC=1
 
 echo "== cfn-nag";   docker run --rm --entrypoint cfn_nag_scan -v "$PWD:/data" -w /data stelligent/cfn_nag \
-  --input-path templates --fail-on-warnings \
+  --input-path anidados --fail-on-warnings \
   | tee "$OUT/cfn-nag.txt" || RC=1
 
 [ $RC -eq 0 ] && echo "Todos los escaneos pasaron." || echo "Hay hallazgos: revisa $OUT/"

@@ -1,0 +1,420 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Asistencia - Servidores y Computo (stack anidado).
+  Dos EC2 Ubuntu 24.04: frontend (Next.js + Nginx) y backend (FastAPI + PostgreSQL).
+
+Parameters:
+  Proyecto:
+    Type: String
+    Default: asistencia
+    AllowedPattern: "^[a-z][a-z0-9-]{2,23}$"
+
+  Ambiente:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, qa, prod]
+
+  PublicSubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: ID de la subred publica (proporcionado por el stack de red)
+
+  FrontendSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: ID del Security Group del frontend (proporcionado por el stack de seguridad)
+
+  BackendSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: ID del Security Group del backend (proporcionado por el stack de seguridad)
+
+  InstanceProfileName:
+    Type: String
+    Description: Nombre del Instance Profile IAM para SSM (proporcionado por el stack de seguridad)
+
+  # Ubuntu 24.04 oficial de Canonical, resuelto por SSM (equivale a data "aws_ami")
+  UbuntuAmi:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+
+  SshPublicKey:
+    Type: String
+    Description: Contenido de la clave publica (~/.ssh/presencia-aws.pub)
+    AllowedPattern: "^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256) .+"
+
+  FrontendInstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues: [t3.micro, t3.small, t3.medium]
+
+  BackendInstanceType:
+    Type: String
+    Default: t3.micro
+    AllowedValues: [t3.micro, t3.small, t3.medium]
+
+  FrontendPrivateIp:
+    Type: String
+    Default: 10.20.1.10
+
+  BackendPrivateIp:
+    Type: String
+    Default: 10.20.1.20
+
+  FrontendVolumeSize:
+    Type: Number
+    Default: 20
+    MinValue: 8
+    MaxValue: 100
+
+  BackendVolumeSize:
+    Type: Number
+    Default: 20
+    MinValue: 8
+    MaxValue: 100
+
+  CpuCredits:
+    Type: String
+    Default: standard
+    AllowedValues: [standard, unlimited]
+
+  DetailedMonitoring:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Monitoreo detallado de CloudWatch (1 min). Tiene costo adicional.
+
+  AsignarIpPublicaBackend:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      IP publica del backend para salir a internet (apt, uv). Con "false" el backend
+      queda solo privado, pero necesita NAT Gateway o VPC endpoints para instalar paquetes.
+
+  RepoUrl:
+    Type: String
+    Default: https://github.com/JuanaBP/presencia-aws.git
+    Description: URL HTTPS del repositorio PUBLICO con frontend/ y backend/
+    AllowedPattern: "^https://.+\\.git$"
+    ConstraintDescription: Debe ser una URL https que termine en .git
+
+  RepoBranch:
+    Type: String
+    Default: main
+    AllowedPattern: "^[A-Za-z0-9._/-]+$"
+
+  DatosDemo:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Carga estudiantes, sesiones y asistencia de ejemplo (app.seed --demo).
+
+Conditions:
+  CargarDemo: !Equals [!Ref DatosDemo, "true"]
+  UsarMonitoreoDetallado: !Equals [!Ref DetailedMonitoring, "true"]
+  BackendConIpPublica: !Equals [!Ref AsignarIpPublicaBackend, "true"]
+
+Resources:
+  # ==========================
+  # CLAVE SSH PUBLICA
+  # ==========================
+  AdminKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub "${Proyecto}-${Ambiente}-cfn-admin"
+      PublicKeyMaterial: !Ref SshPublicKey
+
+  # ==========================
+  # PLANTILLA COMUN (IMDSv2, disco cifrado)
+  # ==========================
+  ServerLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub "${Proyecto}-${Ambiente}-cfn-lt"
+      LaunchTemplateData:
+        MetadataOptions:
+          HttpEndpoint: enabled
+          HttpTokens: required
+          HttpPutResponseHopLimit: 1
+
+  # ==========================
+  # FRONTEND EC2
+  # ==========================
+  FrontendInstance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_88
+            comment: Es el servidor web publico; recibe la IP elastica FrontendEip.
+    Properties:
+      ImageId: !Ref UbuntuAmi
+      InstanceType: !Ref FrontendInstanceType
+      KeyName: !Ref AdminKeyPair
+      IamInstanceProfile: !Ref InstanceProfileName
+      LaunchTemplate:
+        LaunchTemplateId: !Ref ServerLaunchTemplate
+        Version: !GetAtt ServerLaunchTemplate.LatestVersionNumber
+      EbsOptimized: true
+      Monitoring: !If [UsarMonitoreoDetallado, true, false]
+      CreditSpecification:
+        CPUCredits: !Ref CpuCredits
+      NetworkInterfaces:
+        - DeviceIndex: "0"
+          SubnetId: !Ref PublicSubnetId
+          PrivateIpAddress: !Ref FrontendPrivateIp
+          AssociatePublicIpAddress: true
+          GroupSet:
+            - !Ref FrontendSecurityGroupId
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: !Ref FrontendVolumeSize
+            Encrypted: true
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Frontend: Nginx (80) -> Next.js (127.0.0.1:3000) -> API privada del backend.
+          set -euo pipefail
+          exec > >(tee -a /var/log/setup-frontend.log) 2>&1
+          echo "== [1/6] Inicio $(date)"
+          export DEBIAN_FRONTEND=noninteractive
+          APP=/opt/presencia/app
+          API=http://${BackendPrivateIp}:8000
+
+          echo "== [2/6] Swap de 2 GB (compilar Next.js en 2 GB de RAM puede quedarse sin memoria)"
+          if [ ! -f /swapfile ]; then
+            fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+            echo '/swapfile none swap sw 0 0' >> /etc/fstab
+          fi
+
+          echo "== [3/6] Paquetes: Nginx, git, Node.js 24 y pnpm"
+          apt-get update
+          apt-get install -y curl ca-certificates gnupg git nginx
+          curl -fsSL https://deb.nodesource.com/setup_24.x -o /tmp/nodesource.sh
+          bash /tmp/nodesource.sh
+          apt-get install -y nodejs
+          corepack enable
+
+          echo "== [4/6] Codigo desde ${RepoUrl} (${RepoBranch})"
+          install -d -o ubuntu -g ubuntu /opt/presencia
+          sudo -u ubuntu git clone --depth 1 --branch ${RepoBranch} ${RepoUrl} $APP
+
+          echo "== [5/6] Compilar Next.js (standalone)"
+          sudo -u ubuntu -H env COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1 API_URL=$API \
+            bash -c "cd $APP/frontend && pnpm install --frozen-lockfile && (pnpm build || pnpm build) \
+              && cp -r public .next/standalone/ && mkdir -p .next/standalone/.next \
+              && cp -r .next/static .next/standalone/.next/"
+
+          cat > /etc/presencia-frontend.env <<EOF
+          NODE_ENV=production
+          PORT=3000
+          HOSTNAME=127.0.0.1
+          API_URL=$API
+          NEXT_TELEMETRY_DISABLED=1
+          EOF
+
+          cat > /etc/systemd/system/presencia-frontend.service <<'EOF'
+          [Unit]
+          Description=Presencia frontend (Next.js)
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          User=ubuntu
+          WorkingDirectory=/opt/presencia/app/frontend/.next/standalone
+          EnvironmentFile=/etc/presencia-frontend.env
+          ExecStart=/usr/bin/node server.js
+          Restart=always
+          RestartSec=5
+          NoNewPrivileges=true
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          systemctl daemon-reload
+          systemctl enable --now presencia-frontend
+
+          echo "== [6/6] Nginx como proxy inverso"
+          cat > /etc/nginx/sites-available/presencia <<'EOF'
+          server {
+            listen 80 default_server;
+            server_name _;
+            server_tokens off;
+            client_max_body_size 10m;
+            location / {
+              proxy_pass http://127.0.0.1:3000;
+              proxy_http_version 1.1;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+            }
+          }
+          EOF
+          rm -f /etc/nginx/sites-enabled/default
+          ln -sf /etc/nginx/sites-available/presencia /etc/nginx/sites-enabled/presencia
+          nginx -t
+          systemctl enable nginx
+          systemctl reload nginx
+
+          curl -fsS --retry 20 --retry-delay 3 --retry-connrefused -o /dev/null http://127.0.0.1:3000/login
+          echo "== Frontend listo $(date)"
+      Tags:
+        - Key: Name
+          Value: !Sub "${Proyecto}-${Ambiente}-frontend"
+        - Key: Role
+          Value: frontend
+
+  # IP elastica del frontend (la URL publica de la web)
+  FrontendEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref FrontendInstance
+      Tags:
+        - Key: Name
+          Value: !Sub "${Proyecto}-${Ambiente}-frontend-eip"
+
+  # ==========================
+  # BACKEND EC2
+  # ==========================
+  BackendInstance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_88
+            comment: Sin NAT Gateway (costo) el backend necesita IP publica para salir; la API (8000) solo acepta al SG del frontend.
+    Properties:
+      ImageId: !Ref UbuntuAmi
+      InstanceType: !Ref BackendInstanceType
+      KeyName: !Ref AdminKeyPair
+      IamInstanceProfile: !Ref InstanceProfileName
+      LaunchTemplate:
+        LaunchTemplateId: !Ref ServerLaunchTemplate
+        Version: !GetAtt ServerLaunchTemplate.LatestVersionNumber
+      EbsOptimized: true
+      Monitoring: !If [UsarMonitoreoDetallado, true, false]
+      CreditSpecification:
+        CPUCredits: !Ref CpuCredits
+      NetworkInterfaces:
+        - DeviceIndex: "0"
+          SubnetId: !Ref PublicSubnetId
+          PrivateIpAddress: !Ref BackendPrivateIp
+          AssociatePublicIpAddress: !If [BackendConIpPublica, true, false]
+          GroupSet:
+            - !Ref BackendSecurityGroupId
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: !Ref BackendVolumeSize
+            Encrypted: true
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            # Backend: FastAPI (0.0.0.0:8000, el SG solo deja entrar al frontend) + PostgreSQL local.
+            set -euo pipefail
+            exec > >(tee -a /var/log/setup-backend.log) 2>&1
+            echo "== [1/5] Inicio $(date)"
+            export DEBIAN_FRONTEND=noninteractive
+            APP=/opt/presencia/app
+
+            echo "== [2/5] Paquetes: PostgreSQL, git y uv (instala Python 3.14)"
+            apt-get update
+            apt-get install -y git curl ca-certificates build-essential libpq-dev postgresql
+            curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+            systemctl enable --now postgresql
+
+            echo "== [3/5] Base de datos con credenciales aleatorias (no salen del servidor)"
+            DB_PASS=$(openssl rand -hex 24)
+            JWT=$(openssl rand -hex 48)
+            sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE asistencia LOGIN PASSWORD '$DB_PASS'"
+            sudo -u postgres createdb -O asistencia asistencia
+
+            echo "== [4/5] Codigo desde ${RepoUrl} (${RepoBranch}), dependencias y migraciones"
+            install -d -o ubuntu -g ubuntu /opt/presencia
+            sudo -u ubuntu git clone --depth 1 --branch ${RepoBranch} ${RepoUrl} $APP
+            umask 077
+            cat > $APP/backend/.env <<EOF
+            ENVIRONMENT=production
+            DATABASE_URL=postgresql+psycopg://asistencia:$DB_PASS@localhost:5432/asistencia
+            JWT_SECRET=$JWT
+            TIMEZONE=America/La_Paz
+            EOF
+            chown ubuntu:ubuntu $APP/backend/.env
+            umask 022
+            sudo -u ubuntu -H bash -c "cd $APP/backend && uv sync --locked --no-dev \
+              && uv run --no-dev alembic upgrade head \
+              && uv run --no-dev python -m app.seed ${SeedArgs}"
+
+            echo "== [5/5] Servicio systemd presencia-backend"
+            cat > /etc/systemd/system/presencia-backend.service <<'EOF'
+            [Unit]
+            Description=Presencia backend (FastAPI)
+            After=network-online.target postgresql.service
+            Wants=network-online.target
+            Requires=postgresql.service
+
+            [Service]
+            User=ubuntu
+            WorkingDirectory=/opt/presencia/app/backend
+            ExecStart=/opt/presencia/app/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers
+            Restart=always
+            RestartSec=5
+            NoNewPrivileges=true
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+            systemctl daemon-reload
+            systemctl enable --now presencia-backend
+
+            curl -fsS --retry 20 --retry-delay 3 --retry-connrefused http://127.0.0.1:8000/health
+            echo
+            echo "== Backend listo $(date)"
+          - SeedArgs: !If [CargarDemo, "--demo", ""]
+      Tags:
+        - Key: Name
+          Value: !Sub "${Proyecto}-${Ambiente}-backend"
+        - Key: Role
+          Value: backend
+
+Outputs:
+  FrontendInstanceId:
+    Value: !Ref FrontendInstance
+
+  FrontendPublicIp:
+    Description: IP elastica del frontend
+    Value: !Ref FrontendEip
+
+  FrontendPrivateIp:
+    Value: !GetAtt FrontendInstance.PrivateIp
+
+  BackendInstanceId:
+    Value: !Ref BackendInstance
+
+  BackendPublicIp:
+    Condition: BackendConIpPublica
+    Value: !GetAtt BackendInstance.PublicIp
+
+  BackendPrivateIp:
+    Value: !GetAtt BackendInstance.PrivateIp
+
+  ApiUrlInterna:
+    Description: URL privada de FastAPI (API_URL del frontend)
+    Value: !Sub "http://${BackendInstance.PrivateIp}:8000"
+
+  SshFrontend:
+    Value: !Sub "ssh -i ~/.ssh/presencia-aws ubuntu@${FrontendEip}"
+
+  SshBackend:
+    Condition: BackendConIpPublica
+    Value: !Sub "ssh -i ~/.ssh/presencia-aws ubuntu@${BackendInstance.PublicIp}"
+
+  UrlAplicacion:
+    Description: La web (lista unos 10-15 min despues de CREATE_COMPLETE)
+    Value: !Sub "http://${FrontendEip}"

@@ -1,0 +1,19 @@
+# Archivo de despliegue para CloudFormation Git Sync
+# Permite vincular este repositorio en la consola de AWS CloudFormation (Sync from Git)
+# y desplegar automaticamente cuando se haga push a GitHub.
+
+template-file-path: infraestructure/cloudformation/anidados/main.yaml
+parameters:
+  Proyecto: asistencia
+  Ambiente: dev
+  AdminCidr: 0.0.0.0/0
+  RepoUrl: https://github.com/JuanaBP/presencia-aws.git
+  RepoBranch: main
+  FrontendInstanceType: t3.small
+  BackendInstanceType: t3.micro
+  AsignarIpPublicaBackend: "true"
+  DatosDemo: "true"
+tags:
+  Proyecto: asistencia
+  Ambiente: dev
+  Herramienta: CloudFormation
