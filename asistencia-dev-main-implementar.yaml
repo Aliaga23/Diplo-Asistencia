@@ -1,0 +1,17 @@
+template-file-path: infraestructure/cloudformation/anidados/main.yaml
+parameters:
+  Proyecto: asistencia
+  Ambiente: dev
+  AdminCidr: 0.0.0.0/0
+  RepoUrl: https://github.com/sebastianmlz/presencia-aws.git
+  RepoBranch: main
+  FrontendInstanceType: t3.small
+  BackendInstanceType: t3.micro
+  AsignarIpPublicaBackend: "true"
+  DatosDemo: "true"
+  CrearBackend: "false"
+  SshPublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPqgE80/rJ98L5mP0zH+uB5k1C4vN3Zl7qL0yX1pW8r2 asistencia-dev"
+tags:
+  Proyecto: asistencia
+  Ambiente: dev
+  Herramienta: CloudFormation
