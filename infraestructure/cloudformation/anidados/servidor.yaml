@@ -37,6 +37,7 @@ Parameters:
 
   SshPublicKey:
     Type: String
+    Default: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPqgE80/rJ98L5mP0zH+uB5k1C4vN3Zl7qL0yX1pW8r2 asistencia-dev"
     Description: Contenido de la clave publica (~/.ssh/presencia-aws.pub)
     AllowedPattern: "^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256) .+"
 

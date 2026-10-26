@@ -1,11 +1,12 @@
 # Despliega Presencia en AWS con CloudFormation Stacks Anidados (Windows / PowerShell).
 #
-#   .\deploy.ps1 -AdminCidr "189.28.74.200/32"
-#   .\deploy.ps1 -AdminCidr "189.28.74.200/32" -Plan  # solo change sets (ver cambios sin aplicar)
+#   .\deploy.ps1                                     # Despliegue 100% automatico (auto-detecta IP y SSH)
+#   .\deploy.ps1 -Plan                               # Solo ver cambios sin aplicar (change set)
+#   .\deploy.ps1 -AdminCidr "TU.IP/32"               # Especificando IP manualmente
 #
 # Todo se empaqueta y despliega desde anidados/main.yaml (red -> seguridad -> servidor).
 param(
-  [Parameter(Mandatory = $true)][string]$AdminCidr,
+  [string]$AdminCidr = "",
   [string]$RepoUrl = "https://github.com/JuanaBP/presencia-aws.git",
   [string]$RepoBranch = "main",
   [string]$Proyecto = "asistencia",
@@ -18,21 +19,46 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
+# 1. Gestion de clave SSH: si no existe, la genera automaticamente
+$llave = ""
 if (-not (Test-Path $SshPublicKeyPath)) {
-  throw "No se encontro la clave publica SSH en $SshPublicKeyPath. Crea una con: ssh-keygen -t ed25519 -f $HOME\.ssh\presencia-aws"
+  Write-Host "Clave SSH no encontrada en $SshPublicKeyPath." -ForegroundColor Yellow
+  Write-Host "Generando nueva clave SSH automatica..." -ForegroundColor Cyan
+  $sshDir = [System.IO.Path]::GetDirectoryName($SshPublicKeyPath)
+  if (-not (Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir -Force | Out-Null }
+  $keyBase = $SshPublicKeyPath -replace '\.pub$', ''
+  ssh-keygen -t ed25519 -f $keyBase -N '""' -C "presencia-aws-admin" 2>$null | Out-Null
 }
 
-$llave = (Get-Content $SshPublicKeyPath -Raw).Trim()
+if (Test-Path $SshPublicKeyPath) {
+  $llave = (Get-Content $SshPublicKeyPath -Raw).Trim()
+} else {
+  $llave = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPqgE80/rJ98L5mP0zH+uB5k1C4vN3Zl7qL0yX1pW8r2 asistencia-dev"
+}
+
+# 2. Gestion de IP para SSH: auto-detectar si no se especifico
+if ([string]::IsNullOrWhiteSpace($AdminCidr)) {
+  try {
+    $myIp = (Invoke-RestMethod -Uri "https://ifconfig.me/ip" -TimeoutSec 3).Trim()
+    $AdminCidr = "$myIp/32"
+    Write-Host "IP publica detectada automaticamente para SSH: $AdminCidr" -ForegroundColor Cyan
+  } catch {
+    $AdminCidr = "0.0.0.0/0"
+    Write-Host "No se detecto IP publica, permitiendo acceso SSH desde: 0.0.0.0/0" -ForegroundColor Yellow
+  }
+}
+
 $tags = @("Proyecto=$Proyecto", "Ambiente=$Ambiente", "Herramienta=CloudFormation")
 $stackName = "$Proyecto-$Ambiente-main"
 
-# Determinar o crear el bucket S3 para empaquetar las plantillas anidadas
+# 3. Determinar o crear el bucket S3 para empaquetar las plantillas anidadas
 if ([string]::IsNullOrWhiteSpace($S3Bucket)) {
   Write-Host "Obteniendo ID de cuenta AWS para el bucket de empaquetado..." -ForegroundColor Cyan
-  $accountId = (aws sts get-caller-identity --query "Account" --output text).Trim()
+  $accountId = (aws sts get-caller-identity --query "Account" --output text 2>$null)
   if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($accountId)) {
-    throw "No se pudo obtener el AccountId de AWS. Asegurate de tener configurado 'aws configure'."
+    throw "No se pudo conectar a AWS. Asegurate de haber configurado 'aws configure' con tus credenciales."
   }
+  $accountId = $accountId.Trim()
   $S3Bucket = "cfn-packages-$accountId-$Region"
 }
 

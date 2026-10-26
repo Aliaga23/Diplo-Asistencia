@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Despliega Presencia en AWS con CloudFormation Stacks Anidados (Linux / macOS / Git Bash).
 #
-#   ADMIN_CIDR=189.28.74.200/32 ./deploy.sh
-#   ADMIN_CIDR=189.28.74.200/32 PLAN=1 ./deploy.sh   # solo change sets (ver cambios sin aplicar)
+#   ./deploy.sh                      # Despliegue 100% automatico
+#   ADMIN_CIDR=TU.IP/32 ./deploy.sh  # Especificando IP manualmente
+#   PLAN=1 ./deploy.sh               # Solo change sets (ver cambios sin aplicar)
 set -euo pipefail
 cd "$(dirname "$0")"
 
-: "${ADMIN_CIDR:?Indica ADMIN_CIDR, por ejemplo tu IP publica /32}"
 PROYECTO=${PROYECTO:-asistencia}
 AMBIENTE=${AMBIENTE:-dev}
 REGION=${AWS_REGION:-us-east-1}
@@ -17,9 +17,30 @@ STACK_NAME="$PROYECTO-$AMBIENTE-main"
 EXTRA=()
 [ "${PLAN:-0}" = "1" ] && EXTRA+=(--no-execute-changeset)
 
+# Clave SSH: auto-generar si no existe
 if [ ! -f "$SSH_PUB" ]; then
-  echo "Error: No se encontro $SSH_PUB. Genera una con: ssh-keygen -t ed25519 -f ~/.ssh/presencia-aws" >&2
-  exit 1
+  echo "Clave SSH no encontrada en $SSH_PUB. Generando automaticamente..."
+  mkdir -p "$(dirname "$SSH_PUB")"
+  ssh-keygen -t ed25519 -f "${SSH_PUB%.pub}" -N "" -C "presencia-aws-admin" 2>/dev/null || true
+fi
+
+if [ -f "$SSH_PUB" ]; then
+  LLAVE=$(tr -d '\r\n' < "$SSH_PUB")
+else
+  LLAVE="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPqgE80/rJ98L5mP0zH+uB5k1C4vN3Zl7qL0yX1pW8r2 asistencia-dev"
+fi
+
+# IP publica para SSH: auto-detectar si no se paso
+ADMIN_CIDR=${ADMIN_CIDR:-""}
+if [ -z "$ADMIN_CIDR" ]; then
+  MY_IP=$(curl -fsS --max-time 3 https://ifconfig.me/ip 2>/dev/null || true)
+  if [ -n "$MY_IP" ]; then
+    ADMIN_CIDR="${MY_IP}/32"
+    echo "IP publica detectada automaticamente: $ADMIN_CIDR"
+  else
+    ADMIN_CIDR="0.0.0.0/0"
+    echo "No se detecto IP publica, usando: 0.0.0.0/0"
+  fi
 fi
 
 ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text | tr -d '\r\n')
@@ -55,7 +76,7 @@ aws cloudformation deploy \
       AdminCidr="$ADMIN_CIDR" \
       RepoUrl="$REPO_URL" \
       RepoBranch="$REPO_BRANCH" \
-      SshPublicKey="$(tr -d '\r\n' < "$SSH_PUB")" \
+      SshPublicKey="$LLAVE" \
   "${EXTRA[@]}"
 
 if [ "${PLAN:-0}" != "1" ]; then

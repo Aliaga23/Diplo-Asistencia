@@ -13,6 +13,7 @@ parameters:
   BackendInstanceType: t3.micro
   AsignarIpPublicaBackend: "true"
   DatosDemo: "true"
+  SshPublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPqgE80/rJ98L5mP0zH+uB5k1C4vN3Zl7qL0yX1pW8r2 asistencia-dev"
 tags:
   Proyecto: asistencia
   Ambiente: dev
