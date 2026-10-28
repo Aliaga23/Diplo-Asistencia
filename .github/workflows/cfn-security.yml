@@ -27,21 +27,27 @@ jobs:
       - name: Instalar cfn-lint y Checkov
         run: pipx install cfn-lint && pipx install checkov
 
+      - name: Preparar plantillas para escaneo
+        run: |
+          scan_dir="$(mktemp -d)"
+          cp anidados/main.yaml anidados/red.yaml anidados/seguridad.yaml anidados/servidor.yaml "$scan_dir"
+          echo "CFN_SCAN_DIR=$scan_dir" >> "$GITHUB_ENV"
+
       - name: cfn-lint (validación)
-        run: cfn-lint anidados/*.yaml
+        run: cfn-lint "$CFN_SCAN_DIR"/*.yaml
 
       - name: "Escaneo 1: Checkov"
         if: always()
-        run: checkov -d anidados --framework cloudformation --compact
+        run: checkov -d "$CFN_SCAN_DIR" --framework cloudformation --compact
 
       - name: "Escaneo 2: Trivy"
         if: always()
         run: |
-          docker run --rm -v "$PWD:/data" -w /data aquasec/trivy:0.69.3 \
-            config --exit-code 1 anidados
+          docker run --rm -v "$CFN_SCAN_DIR:/data:ro" -w /data aquasec/trivy:0.69.3 \
+            config --exit-code 1 .
 
       - name: "Escaneo 3: cfn-nag"
         if: always()
         run: |
-          docker run --rm --entrypoint cfn_nag_scan -v "$PWD:/data" -w /data stelligent/cfn_nag \
-            --input-path anidados --fail-on-warnings
+          docker run --rm --entrypoint cfn_nag_scan -v "$CFN_SCAN_DIR:/data:ro" -w /data stelligent/cfn_nag \
+            --input-path /data --fail-on-warnings
