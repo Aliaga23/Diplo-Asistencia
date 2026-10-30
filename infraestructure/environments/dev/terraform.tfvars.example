@@ -3,7 +3,7 @@
 project_name = "presencia"
 environment  = "dev"
 
-# Cuenta nueva AWS: reemplazar
+# Cuenta AWS
 expected_account_id = "123456789012"
 
 # Region
@@ -16,7 +16,7 @@ public_subnet_cidr = "10.20.1.0/24"
 # AZ opcional
 availability_zone = null
 
-# SSH: reemplazar por tu IP publica real
+# SSH
 admin_cidrs = [
   "203.0.113.10/32"
 ]

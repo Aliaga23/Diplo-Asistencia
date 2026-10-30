@@ -1,5 +1,5 @@
 config:
   aws:region: us-east-1
-  # Reemplazar por tu IP publica /32: pulumi config set adminCidr "$(curl -s https://checkip.amazonaws.com)/32"
   presencia:adminCidr: 203.0.113.10/32
   presencia:datosDemo: "true"
+encryptionsalt: v1:JFH1gsscZ7s=:v1:IGzU0niBVcMs6prA:qwc8Wgz6kY94VeGkXjsH0KIpfQ7wpw==
