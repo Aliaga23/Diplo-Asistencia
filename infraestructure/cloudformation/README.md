@@ -94,7 +94,7 @@ El proyecto incluye el archivo `anidados/deployment-file.yaml` compatible con la
 
 1. Ve a la consola de **AWS CloudFormation** → **Stacks** → **Create stack** → **With new resources (standard)**.
 2. Selecciona **Sync from Git**.
-3. Conecta tu repositorio de GitHub: `https://github.com/sebastianmlz/presencia-aws.git` en la rama `main`.
+3. Conecta tu repositorio de GitHub: `https://github.com/Aliaga23/Diplo-Asistencia.git` en la rama `main`.
 4. Selecciona el archivo de despliegue: `infraestructure/cloudformation/anidados/deployment-file.yaml`.
 5. CloudFormation sincronizará y actualizará el stack automáticamente con cada commit en Git.
 

@@ -39,7 +39,7 @@ cpu_credits = "standard"
 ami_id = null
 
 # Aplicacion que instala cloud-init
-repo_url       = "https://github.com/sebastianmlz/presencia-aws.git"
+repo_url       = "https://github.com/Aliaga23/Diplo-Asistencia.git"
 repo_branch    = "main"
 load_demo_data = true
 

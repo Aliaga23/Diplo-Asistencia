@@ -10,7 +10,7 @@ cd "$(dirname "$0")"
 PROYECTO=${PROYECTO:-asistencia}
 AMBIENTE=${AMBIENTE:-dev}
 REGION=${AWS_REGION:-us-east-1}
-REPO_URL=${REPO_URL:-https://github.com/sebastianmlz/presencia-aws.git}
+REPO_URL=${REPO_URL:-https://github.com/Aliaga23/Diplo-Asistencia.git}
 REPO_BRANCH=${REPO_BRANCH:-main}
 SSH_PUB=${SSH_PUB:-$HOME/.ssh/presencia-aws.pub}
 STACK_NAME="$PROYECTO-$AMBIENTE-main"
@@ -27,7 +27,7 @@ fi
 if [ -f "$SSH_PUB" ]; then
   LLAVE=$(tr -d '\r\n' < "$SSH_PUB")
 else
-  LLAVE="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPqgE80/rJ98L5mP0zH+uB5k1C4vN3Zl7qL0yX1pW8r2 asistencia-dev"
+  LLAVE="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKLUxmthEAiTpVxpFkRzgv9itlyXib+p1cHhcOZYHtTh presencia-aliaga23"
 fi
 
 # IP publica para SSH: auto-detectar si no se paso

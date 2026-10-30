@@ -141,7 +141,7 @@ variable "cpu_credits" {
 variable "repo_url" {
   description = "URL HTTPS del repositorio publico que clona cloud-init."
   type        = string
-  default     = "https://github.com/sebastianmlz/presencia-aws.git"
+  default     = "https://github.com/Aliaga23/Diplo-Asistencia.git"
 
   validation {
     condition     = can(regex("^https://.+\\.git$", var.repo_url))

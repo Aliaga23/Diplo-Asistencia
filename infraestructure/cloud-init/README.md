@@ -33,7 +33,7 @@ Los tres usan las credenciales de `aws configure`.
 
 ```bash
 # CloudFormation (AWS CLI): primero subir los hijos, porque main.yaml los lee desde S3
-aws s3 cp infraestructure/cloudformation/anidados/ s3://cfn-presencia-sebastianmlz/ \
+aws s3 cp infraestructure/cloudformation/anidados/ s3://cfn-presencia-aliaga23/ \
   --recursive --exclude "*" --include "red.yaml" --include "seguridad.yaml" --include "servidor.yaml"
 ./infraestructure/cloudformation/deploy.sh
 

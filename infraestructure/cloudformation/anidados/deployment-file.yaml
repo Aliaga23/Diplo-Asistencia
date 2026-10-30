@@ -2,8 +2,10 @@ template-file-path: infraestructure/cloudformation/anidados/main.yaml
 parameters:
   Proyecto: asistencia
   Ambiente: dev
-  AdminCidr: 0.0.0.0/0
-  RepoUrl: https://github.com/sebastianmlz/presencia-aws.git
+  # SSH cerrado: 192.0.2.0/24 es un rango de documentacion que no existe en internet.
+  # Para entrar a las EC2 usa Session Manager (EC2 > Conectar). Para abrir SSH, pon tu IP /32.
+  AdminCidr: 192.0.2.1/32
+  RepoUrl: https://github.com/Aliaga23/Diplo-Asistencia.git
   RepoBranch: main
   FrontendInstanceType: t3.small
   BackendInstanceType: t3.micro
@@ -11,8 +13,8 @@ parameters:
   DatosDemo: "true"
   CrearFrontend: "true"
   CrearBackend: "true"
-  TemplateBucketUrl: "https://cfn-presencia-sebastianmlz.s3.us-east-1.amazonaws.com"
-  SshPublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPqgE80/rJ98L5mP0zH+uB5k1C4vN3Zl7qL0yX1pW8r2 asistencia-dev"
+  TemplateBucketUrl: "https://cfn-presencia-aliaga23.s3.us-east-1.amazonaws.com"
+  SshPublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKLUxmthEAiTpVxpFkRzgv9itlyXib+p1cHhcOZYHtTh presencia-aliaga23"
 tags:
   Proyecto: asistencia
   Ambiente: dev

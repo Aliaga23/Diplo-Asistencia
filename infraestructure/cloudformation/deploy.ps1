@@ -7,7 +7,7 @@
 # Todo se empaqueta y despliega desde anidados/main.yaml (red -> seguridad -> servidor).
 param(
   [string]$AdminCidr = "",
-  [string]$RepoUrl = "https://github.com/sebastianmlz/presencia-aws.git",
+  [string]$RepoUrl = "https://github.com/Aliaga23/Diplo-Asistencia.git",
   [string]$RepoBranch = "main",
   [string]$Proyecto = "asistencia",
   [string]$Ambiente = "dev",
@@ -33,7 +33,7 @@ if (-not (Test-Path $SshPublicKeyPath)) {
 if (Test-Path $SshPublicKeyPath) {
   $llave = (Get-Content $SshPublicKeyPath -Raw).Trim()
 } else {
-  $llave = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPqgE80/rJ98L5mP0zH+uB5k1C4vN3Zl7qL0yX1pW8r2 asistencia-dev"
+  $llave = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKLUxmthEAiTpVxpFkRzgv9itlyXib+p1cHhcOZYHtTh presencia-aliaga23"
 }
 
 # 2. Gestion de IP para SSH: auto-detectar si no se especifico

@@ -3,7 +3,6 @@
 Aplicación web para registrar y controlar la asistencia de estudiantes en uno o varios
 programas académicos. Desarrollada por el **grupo GPT-6 AURA**.
 
-- **Producción:** https://diplo.jorgearturo.net
 - **Documentación técnica (PDF):** [`docs/Documentacion-Presencia.pdf`](docs/Documentacion-Presencia.pdf)
 
 ## Funcionalidades
@@ -27,7 +26,7 @@ programas académicos. Desarrollada por el **grupo GPT-6 AURA**.
 | Frontend | Next.js 16 (App Router, Cache Components), React 19, TypeScript, Tailwind CSS 4, shadcn/ui, Phosphor Icons, TanStack Query |
 | Backend | FastAPI, Pydantic 2, SQLAlchemy 2, Alembic, PyJWT, Argon2, openpyxl · Python 3.14 |
 | Base de datos | PostgreSQL 18 |
-| Infraestructura | Docker Compose, GitHub Actions, GHCR, Traefik |
+| Infraestructura | AWS EC2, cloud-init, CloudFormation (anidado + Git Sync), Terraform, Pulumi, GitHub Actions |
 
 ## Diagramas (PlantUML)
 
@@ -94,28 +93,21 @@ cd frontend && pnpm lint && pnpm build
 ```text
 backend/    API FastAPI: modelos, servicios (reglas de negocio), routers, migraciones, pruebas
 frontend/   Next.js: pantallas, BFF (/api/auth, /api/backend), componentes y proxy por rol
-deploy/     Compose de producción y preparación del servidor; aws-ec2/ para el práctico IaC
-infra/      OpenTofu del práctico IaC (2 EC2 en AWS) y su script infra.ps1
+infraestructure/
+  cloud-init/       Configuración de los dos servidores, compartida por las tres herramientas
+  cloudformation/   Stacks anidados (red, seguridad, servidor) y deployment file de Git Sync
+  environments/     Terraform: ambiente dev; modules/ tiene red, seguridad y EC2
+  pulumi/           La misma infraestructura con Pulumi (Python)
 docs/       Documentación PDF, diagramas PlantUML, capturas y archivos Excel de ejemplo
-.github/    CI, publicación de imágenes y despliegue
+.github/    Escaneos de seguridad de las plantillas CloudFormation
 ```
 
 ## Despliegue
 
-**Práctico IaC (clase 2)**: dos EC2 en AWS con OpenTofu y despliegue manual. Guía en
-[`docs/despliegue-clase2.md`](docs/despliegue-clase2.md); permisos en
-[`docs/permisos-aws.md`](docs/permisos-aws.md).
+La app corre en AWS en dos EC2: el frontend (Nginx + Next.js, con IP elástica) y el backend
+(FastAPI + PostgreSQL, accesible solo desde el frontend por su IP privada). Cada servidor se
+configura solo en su primer arranque con cloud-init.
 
-Producción en el VPS «arturo» (13.140.40.2), detrás del Traefik compartido, en
-`/opt/diplo-asistencia`. Un solo flujo, `.github/workflows/ci-cd.yml`, en cada push a `main`:
-
-1. **Pruebas**: Ruff y pytest del backend; lint y tipos del frontend.
-2. **Imágenes**: backend y frontend en `ghcr.io/aliaga23/diplo-asistencia`, etiquetadas con el
-   commit.
-3. **Despliegue por SSH**: valida el compose, baja las imágenes con un token efímero y levanta
-   con `docker compose up --wait` (el backend migra al arrancar). Si un servicio no queda
-   sano, el flujo falla y muestra los registros.
-
-Solo el frontend se publica en Traefik; la API y PostgreSQL viven en una red interna sin
-salida a internet. Los secretos (`.env`) los genera `deploy/arturo/preparar.sh` en el propio
-servidor y nunca pasan por GitHub.
+- **CloudFormation**: un push que cambia `infraestructure/cloudformation/anidados/deployment-file.yaml`
+  o `main.yaml` lo despliega Git Sync. Ver [`infraestructure/cloudformation/README.md`](infraestructure/cloudformation/README.md).
+- **Terraform y Pulumi**: se ejecutan a mano. Ver [`infraestructure/cloud-init/README.md`](infraestructure/cloud-init/README.md).

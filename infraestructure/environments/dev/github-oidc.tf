@@ -48,7 +48,7 @@ data "aws_iam_policy_document" "github_trust" {
       variable = "token.actions.githubusercontent.com:sub"
 
       values = [
-        "repo:LimberMedina@${var.github_owner_id}/Diplo_Mod2_Asistencia@${var.github_repo_id}:ref:refs/heads/main"
+        "repo:Aliaga23@${var.github_owner_id}/Diplo-Asistencia@${var.github_repo_id}:ref:refs/heads/main"
       ]
     }
   }

@@ -1,7 +1,7 @@
 
 terraform {
   backend "s3" {
-    bucket       = "diplo-asistencia-state-359013545184"
+    bucket       = "presencia-tfstate-aliaga23"
     key          = "presencia/dev/terraform.tfstate"
     region       = "us-east-1"
     encrypt      = true

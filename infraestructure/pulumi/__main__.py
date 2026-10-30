@@ -21,7 +21,7 @@ prefijo = f"{proyecto}-{ambiente}"
 
 admin_cidr = config.require("adminCidr")
 ssh_public_key_path = config.get("sshPublicKeyPath") or "~/.ssh/presencia-aws.pub"
-repo_url = config.get("repoUrl") or "https://github.com/sebastianmlz/presencia-aws.git"
+repo_url = config.get("repoUrl") or "https://github.com/Aliaga23/Diplo-Asistencia.git"
 repo_branch = config.get("repoBranch") or "main"
 datos_demo = config.get_bool("datosDemo")
 vpc_cidr = config.get("vpcCidr") or "10.20.0.0/16"

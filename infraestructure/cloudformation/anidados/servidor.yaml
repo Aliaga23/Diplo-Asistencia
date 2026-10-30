@@ -37,7 +37,7 @@ Parameters:
 
   SshPublicKey:
     Type: String
-    Default: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPqgE80/rJ98L5mP0zH+uB5k1C4vN3Zl7qL0yX1pW8r2 asistencia-dev"
+    Default: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKLUxmthEAiTpVxpFkRzgv9itlyXib+p1cHhcOZYHtTh presencia-aliaga23"
     Description: Contenido de la clave publica (~/.ssh/presencia-aws.pub)
     AllowedPattern: "^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256) .+"
 
@@ -92,7 +92,7 @@ Parameters:
 
   RepoUrl:
     Type: String
-    Default: https://github.com/sebastianmlz/presencia-aws.git
+    Default: https://github.com/Aliaga23/Diplo-Asistencia.git
     Description: URL HTTPS del repositorio PUBLICO con frontend/ y backend/
     AllowedPattern: "^https://.+\\.git$"
     ConstraintDescription: Debe ser una URL https que termine en .git
