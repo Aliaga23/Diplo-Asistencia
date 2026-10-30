@@ -3,7 +3,6 @@ parameters:
   Proyecto: asistencia
   Ambiente: dev
   # SSH cerrado: 192.0.2.0/24 es un rango de documentacion que no existe en internet.
-  # Para entrar a las EC2 usa Session Manager (EC2 > Conectar). Para abrir SSH, pon tu IP /32.
   AdminCidr: 192.0.2.1/32
   RepoUrl: https://github.com/Aliaga23/Diplo-Asistencia.git
   RepoBranch: main
@@ -11,8 +10,8 @@ parameters:
   BackendInstanceType: t3.micro
   AsignarIpPublicaBackend: "true"
   DatosDemo: "true"
-  CrearFrontend: "true"
-  CrearBackend: "true"
+  CrearFrontend: "false"
+  CrearBackend: "false"
   TemplateBucketUrl: "https://cfn-presencia-aliaga23.s3.us-east-1.amazonaws.com"
   SshPublicKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKLUxmthEAiTpVxpFkRzgv9itlyXib+p1cHhcOZYHtTh presencia-aliaga23"
 tags:
