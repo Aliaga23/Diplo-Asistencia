@@ -38,5 +38,10 @@ cpu_credits = "standard"
 # AMI Ubuntu automatica
 ami_id = null
 
+# Aplicacion que instala cloud-init
+repo_url       = "https://github.com/sebastianmlz/presencia-aws.git"
+repo_branch    = "main"
+load_demo_data = true
+
 # Dominio opcional
 app_domain = null

@@ -58,6 +58,9 @@ locals {
   )
 
   backend_api_port = 8000
+
+  # Plantillas cloud-init compartidas con CloudFormation y Pulumi.
+  cloud_init_dir = "${path.module}/../../cloud-init"
 }
 
 # ==========================
@@ -110,9 +113,13 @@ module "frontend" {
 
   source = "../../modules/ec2"
 
-  user_data = file(
-    "${path.module}/scripts/frontend.sh"
-  )
+  # Mismo cloud-config que usan CloudFormation y Pulumi.
+  user_data = templatefile("${local.cloud_init_dir}/frontend.yaml", {
+    backend_private_ip = local.backend_private_ip
+    repo_url           = var.repo_url
+    repo_branch        = var.repo_branch
+  })
+
   name = "${local.name_prefix}-frontend"
   role = "frontend"
 
@@ -146,10 +153,11 @@ module "backend" {
 
   source = "../../modules/ec2"
 
-  user_data = file(
-    "${path.module}/scripts/backend.sh"
-  )
-
+  user_data = templatefile("${local.cloud_init_dir}/backend.yaml", {
+    repo_url    = var.repo_url
+    repo_branch = var.repo_branch
+    seed_args   = var.load_demo_data ? "--demo" : ""
+  })
 
   name = "${local.name_prefix}-backend"
   role = "backend"

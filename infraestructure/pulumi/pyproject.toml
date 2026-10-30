@@ -1,0 +1,9 @@
+[project]
+name = "presencia-pulumi"
+version = "0.1.0"
+description = "Infraestructura de Presencia en AWS con Pulumi"
+requires-python = ">=3.12"
+dependencies = [
+    "pulumi>=3.0.0,<4",
+    "pulumi-aws>=7.0.0,<8",
+]

@@ -1,0 +1,6 @@
+name: presencia
+description: Presencia en AWS (VPC, security groups y 2 EC2 configuradas con cloud-init)
+runtime:
+  name: python
+  options:
+    toolchain: uv

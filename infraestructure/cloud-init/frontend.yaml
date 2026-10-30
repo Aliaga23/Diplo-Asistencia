@@ -1,0 +1,95 @@
+#cloud-config
+# Frontend de Presencia: Nginx (80) -> Next.js (127.0.0.1:3000) -> FastAPI en la IP privada del backend.
+#
+# Plantilla compartida por CloudFormation, Terraform y Pulumi (ver README.md de esta carpeta).
+# Los marcadores entre llaves los rellena cada herramienta antes de entregarla como user data;
+# en el shell se usa $VAR sin llaves para no chocar con ellos.
+
+# Compilar Next.js en los 2 GB de RAM de una t3.small puede quedarse sin memoria.
+swap:
+  filename: /swapfile
+  size: 2147483648
+  maxsize: 2147483648
+
+package_update: true
+packages:
+  - curl
+  - ca-certificates
+  - gnupg
+  - git
+  - nginx
+
+write_files:
+  - path: /etc/presencia-frontend.env
+    permissions: "0644"
+    content: |
+      NODE_ENV=production
+      PORT=3000
+      HOSTNAME=127.0.0.1
+      API_URL=http://${backend_private_ip}:8000
+      NEXT_TELEMETRY_DISABLED=1
+
+  - path: /etc/systemd/system/presencia-frontend.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Presencia frontend (Next.js)
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      User=ubuntu
+      WorkingDirectory=/opt/presencia/app/frontend/.next/standalone
+      EnvironmentFile=/etc/presencia-frontend.env
+      ExecStart=/usr/bin/node server.js
+      Restart=always
+      RestartSec=5
+      NoNewPrivileges=true
+
+      [Install]
+      WantedBy=multi-user.target
+
+  # defer: se escribe despues de instalar los paquetes, cuando /etc/nginx ya existe.
+  - path: /etc/nginx/sites-available/presencia
+    permissions: "0644"
+    defer: true
+    content: |
+      server {
+        listen 80 default_server;
+        server_name _;
+        server_tokens off;
+        client_max_body_size 10m;
+        location / {
+          proxy_pass http://127.0.0.1:3000;
+          proxy_http_version 1.1;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+      }
+
+# cloud-init junta todo runcmd en un solo script: "set -eu" lo corta en el primer error.
+runcmd:
+  - set -eu
+  - curl -fsSL https://deb.nodesource.com/setup_24.x -o /tmp/nodesource.sh
+  - bash /tmp/nodesource.sh
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+  - corepack enable
+  - install -d -o ubuntu -g ubuntu /opt/presencia
+  - sudo -u ubuntu git clone --depth 1 --branch ${repo_branch} ${repo_url} /opt/presencia/app
+  - >-
+    sudo -u ubuntu -H env COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1
+    API_URL=http://${backend_private_ip}:8000
+    bash -c "cd /opt/presencia/app/frontend && pnpm install --frozen-lockfile && (pnpm build || pnpm build)
+    && cp -r public .next/standalone/ && mkdir -p .next/standalone/.next
+    && cp -r .next/static .next/standalone/.next/"
+  - systemctl daemon-reload
+  - systemctl enable --now presencia-frontend
+  - rm -f /etc/nginx/sites-enabled/default
+  - ln -sf /etc/nginx/sites-available/presencia /etc/nginx/sites-enabled/presencia
+  - nginx -t
+  - systemctl reload nginx
+  - curl -fsS --retry 20 --retry-delay 3 --retry-connrefused -o /dev/null http://127.0.0.1:3000/login
+
+final_message: "Presencia frontend listo tras $UPTIME s (cloud-init $VERSION)"

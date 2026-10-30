@@ -1,0 +1,70 @@
+#cloud-config
+# Backend de Presencia: FastAPI (0.0.0.0:8000; el SG solo deja entrar al frontend) + PostgreSQL local.
+#
+# Plantilla compartida por CloudFormation, Terraform y Pulumi (ver README.md de esta carpeta).
+# Los marcadores entre llaves los rellena cada herramienta antes de entregarla como user data;
+# en el shell se usa $VAR sin llaves para no chocar con ellos.
+
+package_update: true
+packages:
+  - git
+  - curl
+  - ca-certificates
+  - build-essential
+  - libpq-dev
+  - postgresql
+
+write_files:
+  - path: /etc/systemd/system/presencia-backend.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Presencia backend (FastAPI)
+      After=network-online.target postgresql.service
+      Wants=network-online.target
+      Requires=postgresql.service
+
+      [Service]
+      User=ubuntu
+      WorkingDirectory=/opt/presencia/app/backend
+      ExecStart=/opt/presencia/app/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers
+      Restart=always
+      RestartSec=5
+      NoNewPrivileges=true
+
+      [Install]
+      WantedBy=multi-user.target
+
+# cloud-init junta todo runcmd en un solo script: "set -eu" lo corta en el primer error
+# y las variables (DB_PASS, JWT) siguen vivas entre una linea y la siguiente.
+runcmd:
+  - set -eu
+  - curl -LsSf https://astral.sh/uv/install.sh -o /tmp/uv-install.sh
+  - env UV_INSTALL_DIR=/usr/local/bin sh /tmp/uv-install.sh
+  - systemctl enable --now postgresql
+  # Credenciales aleatorias creadas en el servidor: no pasan por la plantilla ni por ningun estado.
+  - DB_PASS=$(openssl rand -hex 24)
+  - JWT=$(openssl rand -hex 48)
+  - sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE asistencia LOGIN PASSWORD '$DB_PASS'"
+  - sudo -u postgres createdb -O asistencia asistencia
+  - install -d -o ubuntu -g ubuntu /opt/presencia
+  - sudo -u ubuntu git clone --depth 1 --branch ${repo_branch} ${repo_url} /opt/presencia/app
+  - |
+    umask 077
+    cat > /opt/presencia/app/backend/.env <<EOF
+    ENVIRONMENT=production
+    DATABASE_URL=postgresql+psycopg://asistencia:$DB_PASS@localhost:5432/asistencia
+    JWT_SECRET=$JWT
+    TIMEZONE=America/La_Paz
+    EOF
+    chown ubuntu:ubuntu /opt/presencia/app/backend/.env
+    umask 022
+  - >-
+    sudo -u ubuntu -H bash -c "cd /opt/presencia/app/backend && uv sync --locked --no-dev
+    && uv run --no-dev alembic upgrade head
+    && uv run --no-dev python -m app.seed ${seed_args}"
+  - systemctl daemon-reload
+  - systemctl enable --now presencia-backend
+  - curl -fsS --retry 20 --retry-delay 3 --retry-connrefused http://127.0.0.1:8000/health
+
+final_message: "Presencia backend listo tras $UPTIME s (cloud-init $VERSION)"

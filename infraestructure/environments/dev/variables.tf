@@ -138,6 +138,29 @@ variable "cpu_credits" {
 # APLICACION
 # ==========================
 
+variable "repo_url" {
+  description = "URL HTTPS del repositorio publico que clona cloud-init."
+  type        = string
+  default     = "https://github.com/sebastianmlz/presencia-aws.git"
+
+  validation {
+    condition     = can(regex("^https://.+\\.git$", var.repo_url))
+    error_message = "Debe ser una URL https que termine en .git."
+  }
+}
+
+variable "repo_branch" {
+  description = "Rama que clona cloud-init."
+  type        = string
+  default     = "main"
+}
+
+variable "load_demo_data" {
+  description = "Cargar estudiantes y sesiones de prueba en el backend."
+  type        = bool
+  default     = true
+}
+
 variable "app_domain" {
   description = "Dominio opcional, sin https://."
   type        = string
