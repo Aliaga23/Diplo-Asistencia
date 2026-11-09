@@ -53,6 +53,13 @@
         name: "{{ db_name }}"
         owner: "{{ db_user }}"
 
+    - name: Mostrar las IP
+      ansible.builtin.debug:
+        msg:
+          - "IP publica:  {{ ansible_host }}"
+          - "IP privada:  {{ private_ip }}"
+          - "PostgreSQL:  {{ private_ip }}:5432 (solo desde el backend {{ backend_ip }})"
+
   handlers:
     - name: Reiniciar PostgreSQL
       ansible.builtin.service:

@@ -147,6 +147,14 @@
       retries: 20
       delay: 3
 
+    - name: Mostrar las IP
+      ansible.builtin.debug:
+        msg:
+          - "IP publica:  {{ ansible_host }}"
+          - "IP privada:  {{ private_ip }}"
+          - "Backend:     http://{{ backend_ip }}:{{ api_port }}"
+          - "Aplicacion:  http://{{ ansible_host }}"
+
   handlers:
     - name: Reiniciar frontend
       ansible.builtin.systemd_service:
