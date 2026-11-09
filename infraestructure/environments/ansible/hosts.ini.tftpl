@@ -1,0 +1,16 @@
+# Generado por terraform apply en infraestructure/environments/ansible.
+# ansible_host: IP publica por la que entra Ansible. private_ip: la que usan los servidores entre si.
+
+[database]
+database-01 ansible_host=${database_public_ip} private_ip=${database_private_ip}
+
+[backend]
+backend-01 ansible_host=${backend_public_ip} private_ip=${backend_private_ip}
+
+[frontend]
+frontend-01 ansible_host=${frontend_public_ip} private_ip=${frontend_private_ip}
+
+[presencia:children]
+database
+backend
+frontend

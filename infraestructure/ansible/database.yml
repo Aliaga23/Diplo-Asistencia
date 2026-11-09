@@ -1,0 +1,60 @@
+- name: Base de datos PostgreSQL
+  hosts: database
+  become: true
+
+  tasks:
+    - name: Instalar PostgreSQL
+      ansible.builtin.apt:
+        name:
+          - postgresql
+          - python3-psycopg2
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Buscar la carpeta de configuracion de PostgreSQL
+      ansible.builtin.find:
+        paths: /etc/postgresql
+        file_type: directory
+      register: pg_versions
+
+    - name: Guardar la ruta de la configuracion
+      ansible.builtin.set_fact:
+        pg_conf_dir: "{{ pg_versions.files | map(attribute='path') | max }}/main"
+
+    - name: Escuchar tambien en la IP privada
+      ansible.builtin.copy:
+        dest: "{{ pg_conf_dir }}/conf.d/presencia.conf"
+        content: "listen_addresses = 'localhost,{{ private_ip }}'\n"
+        mode: "0644"
+      notify: Reiniciar PostgreSQL
+
+    - name: Aceptar conexiones del backend
+      ansible.builtin.lineinfile:
+        path: "{{ pg_conf_dir }}/pg_hba.conf"
+        line: "host {{ db_name }} {{ db_user }} {{ backend_ip }}/32 scram-sha-256"
+      notify: Reiniciar PostgreSQL
+
+    - name: Arrancar PostgreSQL
+      ansible.builtin.service:
+        name: postgresql
+        state: started
+        enabled: true
+
+    - name: Crear el usuario de la app
+      become_user: postgres
+      community.postgresql.postgresql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+      no_log: true
+
+    - name: Crear la base de datos
+      become_user: postgres
+      community.postgresql.postgresql_db:
+        name: "{{ db_name }}"
+        owner: "{{ db_user }}"
+
+  handlers:
+    - name: Reiniciar PostgreSQL
+      ansible.builtin.service:
+        name: postgresql
+        state: restarted

@@ -1,0 +1,15 @@
+
+# Cuenta AWS
+expected_account_id = "123456789012"
+
+# SSH (Ansible)
+admin_cidrs = [
+  "203.0.113.10/32"
+]
+
+ssh_public_key_path = "~/.ssh/presencia-aws.pub"
+
+# Servidores
+database_instance_type = "t3.micro"
+backend_instance_type  = "t3.micro"
+frontend_instance_type = "t3.small"

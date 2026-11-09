@@ -1,0 +1,15 @@
+[Unit]
+Description=Presencia backend (FastAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory={{ app_dir }}/backend
+ExecStart={{ app_dir }}/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port {{ api_port }} --proxy-headers
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

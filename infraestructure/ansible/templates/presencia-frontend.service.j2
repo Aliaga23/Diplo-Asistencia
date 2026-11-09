@@ -1,0 +1,16 @@
+[Unit]
+Description=Presencia frontend (Next.js)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory={{ app_dir }}/frontend/.next/standalone
+EnvironmentFile=/etc/presencia-frontend.env
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

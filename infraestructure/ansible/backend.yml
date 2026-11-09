@@ -1,0 +1,113 @@
+- name: Backend FastAPI
+  hosts: backend
+  become: true
+
+  vars:
+    backend_dir: "{{ app_dir }}/backend"
+
+  tasks:
+    - name: Instalar dependencias del sistema
+      ansible.builtin.apt:
+        name:
+          - git
+          - curl
+          - ca-certificates
+          - build-essential
+          - libpq-dev
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Descargar el instalador de uv
+      ansible.builtin.get_url:
+        url: https://astral.sh/uv/install.sh
+        dest: /tmp/uv-install.sh
+        mode: "0755"
+
+    - name: Instalar uv
+      ansible.builtin.command: sh /tmp/uv-install.sh
+      environment:
+        UV_INSTALL_DIR: /usr/local/bin
+      args:
+        creates: /usr/local/bin/uv
+
+    - name: Crear la carpeta de la app
+      ansible.builtin.file:
+        path: /opt/presencia
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Clonar el repositorio
+      become_user: ubuntu
+      ansible.builtin.git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ repo_branch }}"
+        depth: 1
+      notify: Reiniciar backend
+
+    - name: Escribir el .env con la conexion a la base de datos
+      ansible.builtin.template:
+        src: templates/backend.env.j2
+        dest: "{{ backend_dir }}/.env"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
+      notify: Reiniciar backend
+
+    - name: Instalar dependencias de Python
+      become_user: ubuntu
+      ansible.builtin.command: uv sync --locked --no-dev
+      args:
+        chdir: "{{ backend_dir }}"
+      register: uv_sync
+      changed_when: "'Installed' in uv_sync.stderr"
+
+    - name: Aplicar migraciones
+      become_user: ubuntu
+      ansible.builtin.command: uv run --no-dev alembic upgrade head
+      args:
+        chdir: "{{ backend_dir }}"
+      register: migraciones
+      changed_when: "'Running upgrade' in migraciones.stderr"
+
+    - name: Cargar datos iniciales
+      become_user: ubuntu
+      ansible.builtin.command: "uv run --no-dev python -m app.seed {{ '--demo' if load_demo_data else '' }}"
+      args:
+        chdir: "{{ backend_dir }}"
+      register: seed
+      changed_when: "'estudiantes,' in seed.stdout"
+
+    - name: Instalar el servicio presencia-backend
+      ansible.builtin.template:
+        src: templates/presencia-backend.service.j2
+        dest: /etc/systemd/system/presencia-backend.service
+        mode: "0644"
+      notify: Reiniciar backend
+
+    - name: Arrancar presencia-backend
+      ansible.builtin.systemd_service:
+        name: presencia-backend
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    - name: Aplicar reinicios pendientes
+      ansible.builtin.meta: flush_handlers
+
+    - name: Comprobar /health
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ api_port }}/health"
+      register: health
+      until: health.status == 200
+      retries: 20
+      delay: 3
+
+  handlers:
+    - name: Reiniciar backend
+      ansible.builtin.systemd_service:
+        name: presencia-backend
+        state: restarted
+        daemon_reload: true

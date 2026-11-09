@@ -1,0 +1,166 @@
+- name: Frontend Next.js con Nginx
+  hosts: frontend
+  become: true
+
+  vars:
+    frontend_dir: "{{ app_dir }}/frontend"
+    build_env:
+      API_URL: "http://{{ backend_ip }}:{{ api_port }}"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      NEXT_TELEMETRY_DISABLED: "1"
+
+  tasks:
+    # Compilar Next.js en los 2 GB de RAM de una t3.small puede quedarse sin memoria.
+    - name: Crear el archivo de swap
+      ansible.builtin.command: fallocate -l 2G /swapfile
+      args:
+        creates: /swapfile
+      register: swapfile
+
+    - name: Formatear y activar el swap
+      ansible.builtin.shell: chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+      when: swapfile.changed
+
+    - name: Activar el swap en cada arranque
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: /swapfile none swap sw 0 0
+
+    - name: Instalar Nginx y herramientas
+      ansible.builtin.apt:
+        name:
+          - curl
+          - ca-certificates
+          - gnupg
+          - git
+          - nginx
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Descargar el instalador de NodeSource
+      ansible.builtin.get_url:
+        url: https://deb.nodesource.com/setup_24.x
+        dest: /tmp/nodesource.sh
+        mode: "0755"
+
+    - name: Agregar el repositorio de Node.js 24
+      ansible.builtin.command: bash /tmp/nodesource.sh
+      args:
+        creates: /usr/share/keyrings/nodesource.gpg
+
+    - name: Instalar Node.js
+      ansible.builtin.apt:
+        name: nodejs
+
+    - name: Habilitar pnpm con corepack
+      ansible.builtin.command: corepack enable
+      args:
+        creates: /usr/bin/pnpm
+
+    - name: Crear la carpeta de la app
+      ansible.builtin.file:
+        path: /opt/presencia
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Clonar el repositorio
+      become_user: ubuntu
+      ansible.builtin.git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ repo_branch }}"
+        depth: 1
+      register: repo
+
+    - name: Ver si ya hay una compilacion
+      ansible.builtin.stat:
+        path: "{{ frontend_dir }}/.next/standalone/server.js"
+      register: compilado
+
+    # API_URL queda fijado en la compilacion: si cambia la IP del backend hay que recompilar.
+    - name: Compilar Next.js
+      become_user: ubuntu
+      ansible.builtin.shell: >-
+        pnpm install --frozen-lockfile && pnpm build
+        && cp -r public .next/standalone/
+        && mkdir -p .next/standalone/.next
+        && cp -r .next/static .next/standalone/.next/
+      args:
+        chdir: "{{ frontend_dir }}"
+      environment: "{{ build_env }}"
+      when: repo.changed or not compilado.stat.exists
+      async: 1800
+      poll: 15
+      notify: Reiniciar frontend
+
+    - name: Escribir las variables del servicio
+      ansible.builtin.template:
+        src: templates/presencia-frontend.env.j2
+        dest: /etc/presencia-frontend.env
+        mode: "0644"
+      notify: Reiniciar frontend
+
+    - name: Instalar el servicio presencia-frontend
+      ansible.builtin.template:
+        src: templates/presencia-frontend.service.j2
+        dest: /etc/systemd/system/presencia-frontend.service
+        mode: "0644"
+      notify: Reiniciar frontend
+
+    - name: Arrancar presencia-frontend
+      ansible.builtin.systemd_service:
+        name: presencia-frontend
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    - name: Configurar el sitio de Nginx
+      ansible.builtin.template:
+        src: templates/nginx-presencia.conf.j2
+        dest: /etc/nginx/sites-available/presencia
+        mode: "0644"
+      notify: Recargar Nginx
+
+    - name: Activar el sitio
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/presencia
+        dest: /etc/nginx/sites-enabled/presencia
+        state: link
+      notify: Recargar Nginx
+
+    - name: Quitar el sitio por defecto
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: Recargar Nginx
+
+    - name: Aplicar reinicios pendientes
+      ansible.builtin.meta: flush_handlers
+
+    - name: Comprobar /login a traves de Nginx
+      ansible.builtin.uri:
+        url: http://127.0.0.1/login
+      register: login
+      until: login.status == 200
+      retries: 20
+      delay: 3
+
+  handlers:
+    - name: Reiniciar frontend
+      ansible.builtin.systemd_service:
+        name: presencia-frontend
+        state: restarted
+        daemon_reload: true
+
+    - name: Validar Nginx
+      ansible.builtin.command: nginx -t
+      changed_when: false
+      listen: Recargar Nginx
+
+    - name: Recargar el servicio Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
+      listen: Recargar Nginx

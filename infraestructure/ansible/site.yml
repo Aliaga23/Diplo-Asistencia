@@ -1,0 +1,10 @@
+# Los tres en orden: la base de datos tiene que existir antes de migrar desde el backend,
+# y el frontend se compila apuntando al backend.
+- name: Base de datos
+  ansible.builtin.import_playbook: database.yml
+
+- name: Backend
+  ansible.builtin.import_playbook: backend.yml
+
+- name: Frontend
+  ansible.builtin.import_playbook: frontend.yml

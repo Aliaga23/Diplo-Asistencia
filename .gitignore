@@ -82,3 +82,6 @@ id_rsa
 id_ecdsa
 id_ed25519
 *.dump
+# Ansible: el inventario lo genera Terraform y las credenciales las crea el lookup password
+infraestructure/ansible/inventory/hosts.ini
+infraestructure/ansible/credentials/

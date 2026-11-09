@@ -1,0 +1,17 @@
+repo_url: https://github.com/Aliaga23/Diplo-Asistencia.git
+repo_branch: main
+app_dir: /opt/presencia/app
+
+api_port: 8000
+load_demo_data: true
+
+db_name: asistencia
+db_user: asistencia
+
+# IP privada de cada servidor, tomada del inventario que genera Terraform.
+database_ip: "{{ hostvars[groups['database'][0]].private_ip }}"
+backend_ip: "{{ hostvars[groups['backend'][0]].private_ip }}"
+
+# Se generan la primera vez en credentials/ (fuera de git) y se reutilizan en cada ejecucion.
+db_password: "{{ lookup('ansible.builtin.password', playbook_dir ~ '/credentials/db_password', length=32, chars=['ascii_letters', 'digits']) }}"
+jwt_secret: "{{ lookup('ansible.builtin.password', playbook_dir ~ '/credentials/jwt_secret', length=64, chars=['ascii_letters', 'digits']) }}"

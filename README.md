@@ -111,3 +111,28 @@ configura solo en su primer arranque con cloud-init.
 - **CloudFormation**: un push que cambia `infraestructure/cloudformation/anidados/deployment-file.yaml`
   o `main.yaml` lo despliega Git Sync. Ver [`infraestructure/cloudformation/README.md`](infraestructure/cloudformation/README.md).
 - **Terraform y Pulumi**: se ejecutan a mano. Ver [`infraestructure/cloud-init/README.md`](infraestructure/cloud-init/README.md).
+
+### Tres servidores configurados con Ansible
+
+`infraestructure/environments/ansible` crea con Terraform tres EC2 vacías: base de datos
+(PostgreSQL, puerto 5432 abierto solo al backend), backend y frontend. No llevan cloud-init: el
+`terraform apply` genera `infraestructure/ansible/inventory/hosts.ini` y Ansible las configura.
+
+```powershell
+# Windows: crear los servidores
+cd infraestructure/environments/ansible
+terraform init
+terraform apply
+```
+
+```bash
+# WSL (Ubuntu): configurarlos
+cd /mnt/c/Users/PC/Documents/Diplo-AWS/infraestructure/ansible
+ansible all -m ping
+ansible-playbook database.yml
+ansible-playbook backend.yml
+ansible-playbook frontend.yml     # o los tres en orden: ansible-playbook site.yml
+```
+
+Las contraseñas de PostgreSQL y el secreto JWT se generan la primera vez en
+`infraestructure/ansible/credentials/` (fuera de git). Para bajar todo: `terraform destroy`.
