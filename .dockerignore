@@ -1,0 +1,10 @@
+*
+!plataforma/api/pyproject.toml
+!plataforma/api/uv.lock
+!plataforma/api/plataforma
+!plataforma/planes.yaml
+!infraestructure/modules
+!infraestructure/tenant
+**/.venv
+**/.terraform
+**/__pycache__

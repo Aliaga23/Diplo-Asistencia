@@ -1,0 +1,104 @@
+name: presencia-plataforma
+
+x-api: &api
+  build:
+    context: ..
+    dockerfile: plataforma/api/Dockerfile
+    args:
+      VERSION: ${VERSION:-dev}
+  image: presencia-plataforma-api
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+  environment:
+    PLATAFORMA_DATABASE_URL: postgresql+psycopg://plataforma:${PLATAFORMA_BD_PASSWORD}@db:5432/plataforma
+    PLATAFORMA_PASSWORD: ${PLATAFORMA_PASSWORD}
+    PLATAFORMA_JWT_SECRET: ${PLATAFORMA_JWT_SECRET}
+    PLATAFORMA_CUENTA_AWS: ${PLATAFORMA_CUENTA_AWS}
+    PLATAFORMA_GRAFANA_URL: http://localhost:3002/d/salud-tenants
+    PULUMI_CONFIG_PASSPHRASE: ${PULUMI_CONFIG_PASSPHRASE}
+    PULUMI_BACKEND_URL: s3://presencia-tfstate-aliaga23/pulumi?region=us-east-1
+    AWS_SHARED_CREDENTIALS_FILE: /aws/credentials
+    AWS_CONFIG_FILE: /aws/config
+    AWS_DEFAULT_REGION: us-east-1
+  volumes:
+    - ${AWS_DIR}:/aws:ro
+    - datos:/datos
+    - pulumi-plugins:/root/.pulumi/plugins
+
+services:
+  db:
+    image: postgres:18.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: plataforma
+      POSTGRES_PASSWORD: ${PLATAFORMA_BD_PASSWORD}
+      POSTGRES_DB: plataforma
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plataforma -d plataforma"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    <<: *api
+    ports:
+      - "8010:8000"
+
+  worker:
+    <<: *api
+    command: ["python", "-m", "plataforma.worker"]
+
+  ui:
+    build: ./ui
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      API_URL: http://api:8000
+    ports:
+      - "3010:3000"
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    restart: unless-stopped
+    environment:
+      AWS_SHARED_CREDENTIALS_FILE: /aws/credentials
+      AWS_CONFIG_FILE: /aws/config
+    volumes:
+      - ./monitoreo/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ${AWS_DIR}:/aws:ro
+      - prometheus:/prometheus
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:13.2.6
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+      - db
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/tableros/salud-tenants.json
+      PLATAFORMA_BD_PASSWORD: ${PLATAFORMA_BD_PASSWORD}
+    volumes:
+      - ./monitoreo/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoreo/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoreo/grafana/alerting:/etc/grafana/provisioning/alerting:ro
+      - ./monitoreo/grafana/tableros:/var/lib/grafana/tableros:ro
+      - grafana:/var/lib/grafana
+    ports:
+      - "3002:3000"
+
+volumes:
+  pgdata:
+  datos:
+  pulumi-plugins:
+  prometheus:
+  grafana:
