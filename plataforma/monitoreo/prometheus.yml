@@ -1,0 +1,50 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: nodo
+    ec2_sd_configs: &ec2
+      - region: us-east-1
+        refresh_interval: 30s
+        filters:
+          - name: tag:Proyecto
+            values: [presencia-plataforma]
+          - name: instance-state-name
+            values: [running]
+    relabel_configs:
+      - source_labels: [__meta_ec2_public_ip]
+        regex: (.+)
+        target_label: __address__
+        replacement: ${1}:9100
+      - source_labels: [__meta_ec2_tag_Tenant]
+        target_label: tenant
+      - source_labels: [__meta_ec2_tag_Plan]
+        target_label: plan
+      - source_labels: [__meta_ec2_tag_Entorno]
+        target_label: entorno
+      - source_labels: [__meta_ec2_tag_Role]
+        target_label: rol
+      - source_labels: [__meta_ec2_tag_Name]
+        target_label: instance
+
+  - job_name: api
+    ec2_sd_configs: *ec2
+    relabel_configs:
+      - source_labels: [__meta_ec2_tag_Role]
+        regex: app
+        action: keep
+      - source_labels: [__meta_ec2_public_ip]
+        regex: (.+)
+        target_label: __address__
+        replacement: ${1}:9101
+      - source_labels: [__meta_ec2_tag_Tenant]
+        target_label: tenant
+      - source_labels: [__meta_ec2_tag_Plan]
+        target_label: plan
+      - source_labels: [__meta_ec2_tag_Entorno]
+        target_label: entorno
+      - source_labels: [__meta_ec2_tag_Role]
+        target_label: rol
+      - source_labels: [__meta_ec2_tag_Name]
+        target_label: instance
