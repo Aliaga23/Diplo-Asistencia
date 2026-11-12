@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy.exc import IntegrityError
 
 from app.api.v1 import api_router
@@ -51,6 +52,9 @@ def create_app() -> FastAPI:
         return {"status": "ok", "time": now_local().isoformat(), "timezone": settings.timezone}
 
     app.include_router(api_router)
+    Instrumentator(excluded_handlers=["/health", "/metrics"]).instrument(app).expose(
+        app, include_in_schema=False
+    )
     return app
 
 

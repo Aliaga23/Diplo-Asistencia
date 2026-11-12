@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { LoginForm } from "@/app/(auth)/login/login-form";
-import { Logo } from "@/components/brand/logo";
+import { Logo, NombreMarca } from "@/components/brand/logo";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Iniciar sesión" };
@@ -87,7 +87,7 @@ export default function LoginPage() {
           </div>
 
           <div className="flex items-center justify-between text-xs text-white/40">
-            <span>© {2026} Presencia</span>
+            <span>© {2026} <NombreMarca defecto="Presencia" /></span>
             <span className="font-mono">FastAPI · Next.js · PostgreSQL</span>
           </div>
         </div>
@@ -102,7 +102,9 @@ export default function LoginPage() {
         <div className="relative flex flex-1 items-center justify-center px-6 pb-16 lg:px-12">
           <div className="w-full max-w-[400px] space-y-8">
             <div className="space-y-2">
-              <p className="text-lg font-semibold text-primary">GRUPO GPT 6</p>
+              <p className="text-lg font-semibold text-primary">
+                <NombreMarca defecto="GRUPO GPT 6" />
+              </p>
               <h2 className="text-2xl font-semibold tracking-tight">
                 Bienvenido de nuevo
               </h2>

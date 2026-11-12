@@ -3,8 +3,8 @@
  *
  * Línea de tiempo:
  *  1. Destellos: pantalla negra con partículas azul/blanco titilando.
- *  2. "App hecha por el grupo": las partículas se ensamblan, el texto se enciende y se dispersa.
- *  3. "GPT-6 AURA": nuevo ensamblaje con brillo y un barrido de luz.
+ *  2. "App hecha por el grupo" (o "Bienvenidos a" en un tenant): se ensambla, brilla y se dispersa.
+ *  3. "GPT-6 AURA" (o la sigla de la institución): nuevo ensamblaje con brillo y un barrido de luz.
  *  4. Cenizas: el texto y la pantalla negra se desintegran de izquierda a derecha
  *     y revelan la página de destino (que ya se cargó detrás).
  */
@@ -161,10 +161,24 @@ export interface IntroEngine {
   skip: () => void
 }
 
+export interface TextosIntro {
+  linea: string
+  titulo: { text: string; color: string }[]
+}
+
+const TEXTOS_GRUPO: TextosIntro = {
+  linea: "App hecha por el grupo",
+  titulo: [
+    { text: "GPT-6 ", color: "#ffffff" },
+    { text: "AURA", color: "#7fb2ff" },
+  ],
+}
+
 export function startIntro(
   canvas: HTMLCanvasElement,
-  opts: { onNavigate: () => void; onDone: () => void; onFirstFrame: () => void }
+  opts: { onNavigate: () => void; onDone: () => void; onFirstFrame: () => void; textos?: TextosIntro }
 ): IntroEngine {
+  const textos = opts.textos ?? TEXTOS_GRUPO
   const ctx = canvas.getContext("2d")
   if (!ctx) {
     opts.onNavigate()
@@ -193,12 +207,9 @@ export function startIntro(
   }))
 
   const aSpec = layoutText(ctx, W, H / 2, Math.max(28, Math.min(base * 0.052, 68)) * dpr, 600, -0.6 * dpr, family, [
-    { text: "App hecha por el grupo", color: "#ffffff" },
+    { text: textos.linea, color: "#ffffff" },
   ])
-  const bSpec = layoutText(ctx, W, H / 2, Math.max(52, Math.min(base * 0.135, 200)) * dpr, 800, -3 * dpr, family, [
-    { text: "GPT-6 ", color: "#ffffff" },
-    { text: "AURA", color: "#7fb2ff" },
-  ])
+  const bSpec = layoutText(ctx, W, H / 2, Math.max(52, Math.min(base * 0.135, 200)) * dpr, 800, -3 * dpr, family, textos.titulo)
 
   const toParticles = (targets: { x: number; y: number; color: Rgb }[], from: "random" | "ring") =>
     targets.map<Particle>((t) => {

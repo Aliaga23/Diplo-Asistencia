@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes"
 import { useState } from "react"
 
 import { IntroProvider } from "@/components/brand/login-intro"
+import { TituloMarca } from "@/components/brand/titulo-marca"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ApiError } from "@/lib/api"
@@ -29,6 +30,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <TooltipProvider delayDuration={200}>
           <IntroProvider>
             {children}
+            <TituloMarca />
             <Toaster />
           </IntroProvider>
         </TooltipProvider>

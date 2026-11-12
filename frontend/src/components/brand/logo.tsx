@@ -1,3 +1,6 @@
+"use client"
+
+import { useMarca } from "@/lib/marca"
 import { cn } from "@/lib/utils"
 
 export function LogoMark({ className }: { className?: string }) {
@@ -23,17 +26,35 @@ export function LogoMark({ className }: { className?: string }) {
 }
 
 export function Logo({ className, subtitle = true }: { className?: string; subtitle?: boolean }) {
+  const marca = useMarca()
   return (
-    <div className={cn("flex items-center gap-2.5", className)}>
+    <div className={cn("flex min-w-0 items-center gap-2.5", className)}>
       <LogoMark />
-      <div className="flex flex-col leading-none">
-        <span className="text-[15px] font-semibold tracking-tight">Presencia</span>
+      <div className="flex min-w-0 flex-col leading-none">
+        <span className="truncate text-[15px] font-semibold tracking-tight">
+          {marca?.sigla ? `Presencia ${marca.sigla}` : "Presencia"}
+        </span>
         {subtitle && (
-          <span className="mt-1 text-[11px] font-medium tracking-wide text-current/60 uppercase">
-            Control de asistencia
+          <span
+            className={cn(
+              "mt-1 truncate text-[11px] font-medium tracking-wide text-current/60 uppercase transition-opacity",
+              marca === null && "opacity-0"
+            )}
+          >
+            {marca?.institucion ?? "Control de asistencia"}
           </span>
         )}
       </div>
     </div>
+  )
+}
+
+/** Nombre de la institución, o el texto del grupo en la instalación propia. */
+export function NombreMarca({ defecto, className }: { defecto: string; className?: string }) {
+  const marca = useMarca()
+  return (
+    <span className={cn("transition-opacity", marca === null && "opacity-0", className)}>
+      {marca?.institucion ?? defecto}
+    </span>
   )
 }

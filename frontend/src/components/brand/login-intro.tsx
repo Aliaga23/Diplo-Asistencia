@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { createPortal } from "react-dom"
 
 import { startIntro, type IntroEngine } from "@/components/brand/intro-engine"
+import { marcaActual } from "@/lib/marca"
 
 interface IntroCtx {
   /** Reproduce la intro y, durante la fase de cenizas, navega al destino. */
@@ -56,7 +57,11 @@ function IntroOverlay({ destination, onDone }: { destination: string; onDone: ()
       const t = setTimeout(onDone, 400)
       return () => clearTimeout(t)
     }
+    const marca = marcaActual()
     engineRef.current = startIntro(canvasRef.current, {
+      textos: marca.sigla
+        ? { linea: "Bienvenidos a", titulo: [{ text: marca.sigla, color: "#7fb2ff" }] }
+        : undefined,
       onNavigate: navigate,
       onDone: () => {
         navigate()
