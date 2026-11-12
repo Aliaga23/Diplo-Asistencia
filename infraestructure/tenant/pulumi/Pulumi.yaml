@@ -1,0 +1,6 @@
+name: presencia-tenant
+description: Un tenant de Presencia en AWS (mismos recursos que tenant/terraform)
+runtime:
+  name: python
+  options:
+    toolchain: uv

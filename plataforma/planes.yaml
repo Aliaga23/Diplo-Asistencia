@@ -1,0 +1,52 @@
+basico:
+  nombre: Básico
+  descripcion: Institutos pequeños o una demo. Todo en un solo servidor.
+  costo_dia_usd: 0.40
+  estudiantes: 100
+  app:
+    tipo: t3.micro
+    vcpu: 2
+    memoria_gib: 1
+    disco_gb: 10
+  bd:
+    modo: local
+    almacenamiento_gb: 10
+    descripcion: PostgreSQL en el mismo servidor de la app
+
+estandar:
+  nombre: Estándar
+  descripcion: Institutos medianos. La base de datos va en su propio servidor.
+  costo_dia_usd: 1.05
+  estudiantes: 1000
+  app:
+    tipo: t3.small
+    vcpu: 2
+    memoria_gib: 2
+    disco_gb: 10
+  bd:
+    modo: ec2
+    tipo: t3.micro
+    vcpu: 2
+    memoria_gib: 1
+    almacenamiento_gb: 20
+    descripcion: PostgreSQL en un servidor aparte, solo accesible desde la app
+
+avanzado:
+  nombre: Avanzado
+  descripcion: Universidades. Base de datos administrada por AWS con respaldos diarios.
+  costo_dia_usd: 1.15
+  estudiantes: 10000
+  app:
+    tipo: t3.small
+    vcpu: 2
+    memoria_gib: 2
+    disco_gb: 10
+  bd:
+    modo: rds
+    clase: db.t3.micro
+    vcpu: 2
+    memoria_gib: 1
+    almacenamiento_gb: 20
+    version: "17"
+    respaldo_dias: 1
+    descripcion: Amazon RDS PostgreSQL con respaldo automático diario

@@ -1,0 +1,11 @@
+[project]
+name = "presencia-tenant-pulumi"
+version = "0.1.0"
+description = "Tenant de Presencia en AWS con Pulumi"
+requires-python = ">=3.12"
+dependencies = [
+    "pulumi>=3.0.0,<4",
+    "pulumi-aws>=7.0.0,<8",
+    "pulumi-random>=4.16.0,<5",
+    "pyyaml>=6.0",
+]
