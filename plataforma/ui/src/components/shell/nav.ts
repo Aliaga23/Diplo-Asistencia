@@ -8,7 +8,7 @@ import {
 } from "@phosphor-icons/react"
 import type { Icon } from "@phosphor-icons/react"
 
-export const GRAFANA_URL = "http://localhost:3002/d/salud-tenants"
+export const GRAFANA_URL = "/grafana/d/salud-tenants"
 
 export interface NavItem {
   title: string

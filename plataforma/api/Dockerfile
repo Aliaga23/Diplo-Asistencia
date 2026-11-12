@@ -37,6 +37,7 @@ COPY plataforma/planes.yaml repo/plataforma/planes.yaml
 COPY infraestructure/modules repo/infraestructure/modules
 COPY infraestructure/tenant repo/infraestructure/tenant
 COPY plataforma/api/plataforma ./plataforma
+COPY plataforma/scripts ./scripts
 
 ARG VERSION=dev
 ENV PLATAFORMA_VERSION=${VERSION} \

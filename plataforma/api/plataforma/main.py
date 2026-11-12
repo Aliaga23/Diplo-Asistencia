@@ -290,7 +290,7 @@ def eventos(db: Db, _: Admin) -> list[Operacion]:
 @app.get("/alertas", tags=["Eventos"])
 def alertas(_: Admin) -> list[dict]:
     try:
-        respuesta = httpx.get("http://grafana:3000/api/prometheus/grafana/api/v1/alerts", timeout=5)
+        respuesta = httpx.get(f"{settings.grafana_interno}/api/prometheus/grafana/api/v1/alerts", timeout=5)
         datos = respuesta.json()["data"]["alerts"]
     except httpx.HTTPError, KeyError, ValueError:
         return []

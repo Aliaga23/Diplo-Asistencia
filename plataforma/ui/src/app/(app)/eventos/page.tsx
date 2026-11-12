@@ -6,6 +6,7 @@ import Link from "next/link"
 
 import { EstadoOperacionBadge } from "@/components/plataforma/estado"
 import { Pagina } from "@/components/plataforma/pagina"
+import { GRAFANA_URL } from "@/components/shell/nav"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -32,7 +33,7 @@ export default function Eventos() {
       descripcion="Alertas de Grafana sobre la salud de los tenants y últimas operaciones de la plataforma."
       acciones={
         <Button asChild variant="outline">
-          <a href="http://localhost:3002/d/salud-tenants" target="_blank" rel="noreferrer">
+          <a href={GRAFANA_URL} target="_blank" rel="noreferrer">
             <ChartLineIcon /> Abrir el tablero
           </a>
         </Button>

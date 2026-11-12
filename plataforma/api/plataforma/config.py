@@ -19,7 +19,8 @@ class Settings(BaseSettings):
     repo_dir: Path = Path("/app/repo")
     datos_dir: Path = Path("/datos")
     version: str = "dev"
-    grafana_url: str = "http://localhost:3002"
+    grafana_url: str = "/grafana/d/salud-tenants"
+    grafana_interno: str = "http://grafana:3000/grafana"
 
     @property
     def tenant_dir(self) -> Path:

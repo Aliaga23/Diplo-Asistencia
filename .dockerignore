@@ -8,3 +8,4 @@
 **/.venv
 **/.terraform
 **/__pycache__
+!plataforma/scripts

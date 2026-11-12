@@ -16,7 +16,6 @@ x-api: &api
     PLATAFORMA_PASSWORD: ${PLATAFORMA_PASSWORD}
     PLATAFORMA_JWT_SECRET: ${PLATAFORMA_JWT_SECRET}
     PLATAFORMA_CUENTA_AWS: ${PLATAFORMA_CUENTA_AWS}
-    PLATAFORMA_GRAFANA_URL: http://localhost:3002/d/salud-tenants
     PULUMI_CONFIG_PASSPHRASE: ${PULUMI_CONFIG_PASSPHRASE}
     PULUMI_BACKEND_URL: s3://presencia-tfstate-aliaga23/pulumi?region=us-east-1
     AWS_SHARED_CREDENTIALS_FILE: /aws/credentials
@@ -46,7 +45,7 @@ services:
   api:
     <<: *api
     ports:
-      - "8010:8000"
+      - "127.0.0.1:8010:8000"
 
   worker:
     <<: *api
@@ -60,7 +59,7 @@ services:
     environment:
       API_URL: http://api:8000
     ports:
-      - "3010:3000"
+      - "${PUERTO_UI:-3010}:3000"
 
   prometheus:
     image: prom/prometheus:v3.15.1
@@ -73,7 +72,7 @@ services:
       - ${AWS_DIR}:/aws:ro
       - prometheus:/prometheus
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
 
   grafana:
     image: grafana/grafana:13.2.6
@@ -83,6 +82,8 @@ services:
       - db
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/tableros/salud-tenants.json
@@ -94,7 +95,7 @@ services:
       - ./monitoreo/grafana/tableros:/var/lib/grafana/tableros:ro
       - grafana:/var/lib/grafana
     ports:
-      - "3002:3000"
+      - "127.0.0.1:3002:3000"
 
 volumes:
   pgdata:

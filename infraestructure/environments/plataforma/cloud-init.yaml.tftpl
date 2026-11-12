@@ -1,0 +1,47 @@
+#cloud-config
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - git
+
+write_files:
+  - path: /usr/local/sbin/plataforma-arranque
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      snap install aws-cli --classic
+      secreto() {
+        for _ in $(seq 1 30); do
+          /snap/bin/aws ssm get-parameter --region ${region} --with-decryption \
+            --name "/presencia/plataforma/$1" --query Parameter.Value --output text && return 0
+          sleep 5
+        done
+        return 1
+      }
+
+      git clone --branch ${repo_branch} --depth 1 ${repo_url} /opt/presencia
+      mkdir -p /opt/plataforma-aws
+      cd /opt/presencia/plataforma
+
+      install -m 600 /dev/null .env
+      cat > .env <<ENV
+      PLATAFORMA_PASSWORD=$(secreto password)
+      PLATAFORMA_JWT_SECRET=$(secreto jwt_secret)
+      PLATAFORMA_CUENTA_AWS=${cuenta}
+      PLATAFORMA_BD_PASSWORD=$(secreto bd_password)
+      PULUMI_CONFIG_PASSPHRASE=$(secreto pulumi_passphrase)
+      GRAFANA_PASSWORD=$(secreto grafana_password)
+      AWS_DIR=/opt/plataforma-aws
+      PUERTO_UI=80
+      VERSION=$(git -C /opt/presencia describe --always)
+      ENV
+
+      systemctl enable --now docker
+      docker compose up -d --build
+      echo "[plataforma-arranque] listo"
+
+runcmd:
+  - [/usr/local/sbin/plataforma-arranque]
