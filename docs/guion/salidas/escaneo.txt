@@ -1,0 +1,19 @@
+Tenant upsa (Universidad Privada de Santa Cruz) · plan basico · motor terraform
+Imagen: ami-0ff84e07d88764d93 (presencia-20261112-0713, app c427ab6)
+Métricas abiertas solo para la IP de la plataforma: 3.235.12.162/32
+Versiones: {'plataforma': 'c427ab6', 'app': 'c427ab6', 'ami': 'ami-0ff84e07d88764d93', 'motor': 'terraform', 'version_motor': '1.16.6', 'ansible': 'ansible [core 2.20.1]', 'plantillas': '33febf15f76c'}
+== Escaneo de secretos (gitleaks) ==
+$ gitleaks dir /app/repo/infraestructure/tenant --no-banner --no-color --redact --verbose
+7:32AM INF scanned ~140167 bytes (140.17 KB) in 166ms
+7:32AM INF no leaks found
+$ gitleaks dir /tmp/tmpg928ek2i/tenant.json --no-banner --no-color --redact --verbose
+7:32AM INF scanned ~532 bytes (532 bytes) in 20.2ms
+7:32AM INF no leaks found
+Sin secretos en las plantillas ni en la configuración del tenant.
+== Escaneo de configuración (checkov) ==
+$ checkov -d /app/repo/infraestructure/tenant/terraform --framework terraform --compact --quiet --soft-fail --skip-download
+terraform scan results:
+
+Passed checks: 107, Failed checks: 22, Skipped checks: 0
+
+Advertencia: checkov marcó 22 recomendaciones (no bloquean).

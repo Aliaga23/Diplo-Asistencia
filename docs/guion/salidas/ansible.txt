@@ -1,0 +1,47 @@
+== Configuración posterior con Ansible ==
+$ ansible-playbook -i /tmp/tmp8a19wu96/hosts.ini /app/repo/infraestructure/ansible/tenant.yml -u ubuntu --private-key 
+PLAY [Configuración posterior de los servidores del tenant] ********************
+TASK [Gathering Facts] *********************************************************
+TASK [Esperar a que cloud-init termine el arranque] ****************************
+TASK [Nombre del servidor] *****************************************************
+changed: [unifranz-app]
+changed: [unifranz-bd]
+TASK [Zona horaria de Bolivia] *************************************************
+changed: [unifranz-app]
+changed: [unifranz-bd]
+TASK [Usuario de operación sin contraseña] *************************************
+changed: [unifranz-app]
+changed: [unifranz-bd]
+TASK [Acceso del usuario de operación con la clave de la plataforma] ***********
+changed: [unifranz-app]
+changed: [unifranz-bd]
+TASK [Permisos del usuario de operación (solo revisar y reiniciar los servicios)] ***
+changed: [unifranz-app]
+changed: [unifranz-bd]
+TASK [Endurecer SSH] ***********************************************************
+changed: [unifranz-app]
+changed: [unifranz-bd]
+TASK [Actualizaciones de seguridad automáticas] ********************************
+TASK [Firewall - SSH solo desde la plataforma] *********************************
+changed: [unifranz-app]
+changed: [unifranz-bd]
+TASK [Firewall - métricas solo para Prometheus de la plataforma] ***************
+changed: [unifranz-app]
+changed: [unifranz-bd]
+TASK [Firewall - web pública] **************************************************
+changed: [unifranz-app]
+TASK [Firewall - PostgreSQL solo dentro de la red del tenant] ******************
+changed: [unifranz-bd]
+TASK [Firewall - denegar todo lo demás y activar] ******************************
+changed: [unifranz-app]
+changed: [unifranz-bd]
+TASK [Leer el estado de los servicios] *****************************************
+TASK [Verificar que los servicios del rol estén corriendo] *********************
+TASK [Verificar que PostgreSQL acepta conexiones] ******************************
+RUNNING HANDLER [Recargar SSH] *************************************************
+changed: [unifranz-app]
+changed: [unifranz-bd]
+PLAY RECAP *********************************************************************
+unifranz-app               : ok=16   changed=11   unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+unifranz-bd                : ok=16   changed=11   unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+Listo. Administrador del tenant: registro 200300400

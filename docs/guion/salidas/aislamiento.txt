@@ -1,0 +1,31 @@
+$ docker compose exec backend python scripts/probar_aislamiento.py upsa unifranz
+
+1. Cada administrador entra solo a su propio tenant (http://3.218.155.205 y http://34.198.102.24)
+  ✓ El admin de upsa entra a upsa
+  ✓ El admin de unifranz entra a unifranz
+  ✓ Las credenciales de upsa no sirven en unifranz
+
+2. El token de un tenant no vale en el otro (cada uno firma con su propio JWT_SECRET)
+  ✓ upsa lee sus estudiantes con su token  (26 estudiantes)
+  ✓ El token de upsa es rechazado por unifranz  (HTTP 401)
+  ✓ Cada base de datos tiene sus propios datos  (upsa: 26 estudiantes, unifranz: 26 estudiantes)
+
+3. Desde afuera no se llega a la base de datos ni a la API interna
+  ✓ upsa 3.218.155.205:5432 cerrado
+  ✓ upsa 3.218.155.205:8000 cerrado
+  ✓ unifranz 34.198.102.24:5432 cerrado
+  ✓ unifranz 34.198.102.24:8000 cerrado
+  ✓ unifranz 54.175.57.252:5432 cerrado
+  ✓ unifranz 54.175.57.252:8000 cerrado
+
+4. Desde el servidor de upsa no se llega a los servidores de unifranz (tampoco por SSH)
+  ✓ upsa → unifranz 34.198.102.24:5432 cerrado
+  ✓ upsa → unifranz 34.198.102.24:8000 cerrado
+  ✓ upsa → unifranz 34.198.102.24:9100 cerrado
+  ✓ upsa → unifranz 34.198.102.24:22 cerrado
+  ✓ upsa → unifranz 54.175.57.252:5432 cerrado
+  ✓ upsa → unifranz 54.175.57.252:8000 cerrado
+  ✓ upsa → unifranz 54.175.57.252:9100 cerrado
+  ✓ upsa → unifranz 54.175.57.252:22 cerrado
+
+20 de 20 comprobaciones correctas

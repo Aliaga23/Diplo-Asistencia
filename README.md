@@ -5,6 +5,7 @@ programas académicos. Desarrollada por el **grupo GPT-6 AURA**.
 
 - **Documentación técnica (PDF):** [`docs/Documentacion-Presencia.pdf`](docs/Documentacion-Presencia.pdf)
 - **Plataforma de tenants (PDF):** [`docs/Documentacion-Plataforma-Presencia.pdf`](docs/Documentacion-Plataforma-Presencia.pdf)
+- **Guion de la presentación (PDF):** [`docs/Guion-Presentacion-Plataforma.pdf`](docs/Guion-Presentacion-Plataforma.pdf)
 
 ## Funcionalidades
 

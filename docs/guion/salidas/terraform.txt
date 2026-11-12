@@ -1,0 +1,30 @@
+$ terraform -chdir=/app/repo/infraestructure/tenant/terraform init -no-color -reconfigure -lockfile=readonly -backend-
+$ terraform -chdir=/app/repo/infraestructure/tenant/terraform apply -auto-approve -no-color -var-file=/datos/terraform
+Plan: 24 to add, 0 to change, 0 to destroy.
+aws_key_pair.plataforma: Creating...
+aws_ssm_parameter.secretos["bd_password"]: Creating...
+aws_ssm_parameter.secretos["admin_password"]: Creating...
+aws_ssm_parameter.secretos["jwt_secret"]: Creating...
+aws_ssm_parameter.secretos["admin_password"]: Creation complete after 1s [id=/presencia/tenants/upsa/admin_password]
+aws_key_pair.plataforma: Creation complete after 1s [id=presencia-upsa-plataforma]
+aws_ssm_parameter.secretos["bd_password"]: Creation complete after 1s [id=/presencia/tenants/upsa/bd_password]
+aws_ssm_parameter.secretos["jwt_secret"]: Creation complete after 1s [id=/presencia/tenants/upsa/jwt_secret]
+module.app.aws_instance.this: Creation complete after 13s [id=i-0939a39cd694e6ee5]
+aws_eip.app: Creation complete after 3s [id=eipalloc-0248e8f3f79f63432]
+Apply complete! Resources: 24 added, 0 changed, 0 destroyed.
+$ terraform -chdir=/app/repo/infraestructure/tenant/terraform output -json -no-color
+
+Outputs:
+
+admin_registro = "100200300"
+ami = "ami-0ff84e07d88764d93"
+instancias = [
+  "i-0939a39cd694e6ee5",
+]
+ip_publica = "3.218.155.205"
+rds = ""
+servidores = {
+  "app" = "3.218.155.205"
+}
+url = "http://3.218.155.205"
+$ terraform -chdir=/app/repo/infraestructure/tenant/terraform output -json -no-color
