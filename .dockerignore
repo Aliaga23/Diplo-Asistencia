@@ -5,6 +5,7 @@
 !plataforma/planes.yaml
 !infraestructure/modules
 !infraestructure/tenant
+!infraestructure/ansible/tenant.yml
 **/.venv
 **/.terraform
 **/__pycache__

@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from sqlalchemy import exists, select, update
 from sqlalchemy.orm import aliased
 
-from plataforma import nube
+from plataforma import configuracion, nube
 from plataforma.config import get_settings
 from plataforma.db import Base, SessionLocal, engine
 from plataforma.errores import ErrorOperacion, explicar
@@ -92,6 +92,7 @@ def variables(tenant: Tenant, ami_id: str) -> dict:
         "admin_correo": tenant.correo,
         "datos_demo": tenant.datos_demo,
         "ami_id": ami_id,
+        "ssh_public_key": configuracion.clave_publica(),
     }
 
 
@@ -112,6 +113,7 @@ def crear(tenant: Tenant, op: Operacion, log: Bitacora) -> None:
         "ami": imagen["id"],
         "motor": tenant.motor,
         "version_motor": motor.version(),
+        "ansible": configuracion.version(),
         "plantillas": huella_plantillas(),
     }
     log(f"Versiones: {op.versiones}")
@@ -125,6 +127,9 @@ def crear(tenant: Tenant, op: Operacion, log: Bitacora) -> None:
     log(f"Servidores: {', '.join(salidas['instancias'])}")
 
     nube.esperar_app(tenant.url, log, minutos=35 if salidas.get("rds") else 20)
+
+    log("== Configuración posterior con Ansible ==")
+    configuracion.configurar(tenant.id, salidas.get("servidores") or {}, tenant.admin_cidrs[0], log)
     log(f"Listo. Administrador del tenant: registro {tenant.admin_registro}")
 
 

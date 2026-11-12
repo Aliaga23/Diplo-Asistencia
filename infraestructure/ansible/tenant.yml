@@ -1,0 +1,121 @@
+- name: Configuración posterior de los servidores del tenant
+  hosts: all
+  become: true
+
+  vars:
+    vpc_cidr: 10.0.0.0/16
+    usuario_operacion: operador
+
+  tasks:
+    - name: Esperar a que cloud-init termine el arranque
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+
+    - name: Nombre del servidor
+      ansible.builtin.hostname:
+        name: "presencia-{{ tenant }}-{{ rol }}"
+
+    - name: Zona horaria de Bolivia
+      community.general.timezone:
+        name: America/La_Paz
+
+    - name: Usuario de operación sin contraseña
+      ansible.builtin.user:
+        name: "{{ usuario_operacion }}"
+        shell: /bin/bash
+        password: "!"
+        comment: Operación de la plataforma
+
+    - name: Acceso del usuario de operación con la clave de la plataforma
+      ansible.posix.authorized_key:
+        user: "{{ usuario_operacion }}"
+        key: "{{ clave_publica }}"
+
+    - name: Permisos del usuario de operación (solo revisar y reiniciar los servicios)
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/operador
+        mode: "0440"
+        validate: visudo -cf %s
+        content: |
+          {{ usuario_operacion }} ALL=(root) NOPASSWD: /usr/bin/systemctl status presencia-*, /usr/bin/systemctl restart presencia-*, /usr/bin/systemctl status postgresql, /usr/bin/journalctl -u presencia-*
+
+    - name: Endurecer SSH
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/10-presencia.conf
+        mode: "0644"
+        content: |
+          PasswordAuthentication no
+          KbdInteractiveAuthentication no
+          PermitRootLogin no
+          MaxAuthTries 3
+          AllowUsers ubuntu {{ usuario_operacion }}
+      notify: Recargar SSH
+
+    - name: Actualizaciones de seguridad automáticas
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        mode: "0644"
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+
+    - name: Firewall - SSH solo desde la plataforma
+      community.general.ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+        src: "{{ plataforma_cidr }}"
+
+    - name: Firewall - métricas solo para Prometheus de la plataforma
+      community.general.ufw:
+        rule: allow
+        port: "{{ '9100:9101' if rol == 'app' else '9100' }}"
+        proto: tcp
+        src: "{{ plataforma_cidr }}"
+
+    - name: Firewall - web pública
+      community.general.ufw:
+        rule: allow
+        port: "80"
+        proto: tcp
+      when: rol == 'app'
+
+    - name: Firewall - PostgreSQL solo dentro de la red del tenant
+      community.general.ufw:
+        rule: allow
+        port: "5432"
+        proto: tcp
+        src: "{{ vpc_cidr }}"
+      when: rol == 'bd'
+
+    - name: Firewall - denegar todo lo demás y activar
+      community.general.ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+
+    - name: Leer el estado de los servicios
+      ansible.builtin.service_facts:
+
+    - name: Verificar que los servicios del rol estén corriendo
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services[item].state == 'running'
+        fail_msg: "{{ item }} no está corriendo"
+        quiet: true
+      loop:
+        - presencia-backend.service
+        - presencia-frontend.service
+        - nginx.service
+      when: rol == 'app'
+
+    - name: Verificar que PostgreSQL acepta conexiones
+      ansible.builtin.command: pg_isready -h localhost -p 5432
+      changed_when: false
+      when: rol == 'bd'
+
+  handlers:
+    - name: Recargar SSH
+      ansible.builtin.service:
+        name: ssh
+        state: reloaded

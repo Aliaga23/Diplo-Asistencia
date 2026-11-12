@@ -147,6 +147,7 @@ class Pulumi(Motor):
         "admin_correo": "adminCorreo",
         "datos_demo": "datosDemo",
         "ami_id": "amiId",
+        "ssh_public_key": "sshPublicKey",
     }
 
     @property

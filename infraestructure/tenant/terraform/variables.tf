@@ -73,6 +73,11 @@ variable "datos_demo" {
   default     = false
 }
 
+variable "ssh_public_key" {
+  description = "Clave publica de la plataforma, para que Ansible configure los servidores."
+  type        = string
+}
+
 variable "ami_id" {
   description = "AMI de Presencia. Vacio usa la ultima construida con Packer."
   type        = string

@@ -43,6 +43,7 @@ admin_correo = config.require("adminCorreo")
 datos_demo = config.get_bool("datosDemo") or False
 ami_config = config.get("amiId") or ""
 contrasena_inicial = config.get_secret("contrasenaInicial") or "admin1234!"
+ssh_public_key = config.require("sshPublicKey")
 
 plan = CATALOGO[plan_id]
 bd_modo = plan["bd"]["modo"]
@@ -160,6 +161,17 @@ for cidr in admin_cidrs:
         description="node_exporter y metricas de la API",
         opts=opts,
     )
+for cidr in admin_cidrs:
+    aws.vpc.SecurityGroupIngressRule(
+        f"app-ssh-{cidr}",
+        security_group_id=sg_app.id,
+        cidr_ipv4=cidr,
+        ip_protocol="tcp",
+        from_port=22,
+        to_port=22,
+        description="Ansible desde la plataforma",
+        opts=opts,
+    )
 for clave, (puerto, protocolo) in PUERTOS_SALIDA.items():
     aws.vpc.SecurityGroupEgressRule(
         f"app-internet-{clave}",
@@ -214,6 +226,16 @@ if bd_modo == "ec2":
             description="node_exporter",
             opts=opts,
         )
+        aws.vpc.SecurityGroupIngressRule(
+            f"bd-ssh-{cidr}",
+            security_group_id=sg_bd.id,
+            cidr_ipv4=cidr,
+            ip_protocol="tcp",
+            from_port=22,
+            to_port=22,
+            description="Ansible desde la plataforma",
+            opts=opts,
+        )
     for clave, (puerto, protocolo) in PUERTOS_SALIDA.items():
         aws.vpc.SecurityGroupEgressRule(
             f"bd-internet-{clave}",
@@ -225,6 +247,10 @@ if bd_modo == "ec2":
             description=f"Salida {clave}",
             opts=opts,
         )
+
+clave_plataforma = aws.ec2.KeyPair(
+    "plataforma", key_name=f"{prefijo}-plataforma", public_key=ssh_public_key, opts=opts
+)
 
 # Secretos del tenant en SSM: los servidores los leen al arrancar
 pw_bd = random.RandomPassword("bd", length=32, special=False)
@@ -299,6 +325,7 @@ def servidor(rol_servidor: str, tipo: str, ip: str, disco: int, sgs, user_data, 
         associate_public_ip_address=True,
         vpc_security_group_ids=sgs,
         iam_instance_profile=perfil.name,
+        key_name=clave_plataforma.key_name,
         user_data=user_data,
         credit_specification=aws.ec2.InstanceCreditSpecificationArgs(cpu_credits="standard"),
         metadata_options=aws.ec2.InstanceMetadataOptionsArgs(http_endpoint="enabled", http_tokens="required"),
@@ -311,6 +338,7 @@ def servidor(rol_servidor: str, tipo: str, ip: str, disco: int, sgs, user_data, 
 
 
 instancias = []
+servidores: dict[str, pulumi.Input[str]] = {}
 rds = None
 bd_host: pulumi.Input[str] = "127.0.0.1"
 
@@ -325,6 +353,7 @@ if bd_modo == "ec2":
         secretos,
     )
     instancias.append(bd.id)
+    servidores["bd"] = bd.public_ip
     bd_host = IP_BD
 
 if bd_modo == "rds":
@@ -381,6 +410,8 @@ ip = aws.ec2.Eip("app-eip", domain="vpc", instance=app.id, tags=nombre("app"), o
 pulumi.export("url", ip.public_ip.apply(lambda x: f"http://{x}"))
 pulumi.export("ip_publica", ip.public_ip)
 pulumi.export("instancias", instancias)
+servidores["app"] = ip.public_ip
+pulumi.export("servidores", servidores)
 pulumi.export("rds", rds.identifier if rds else "")
 pulumi.export("ami", ami_id)
 pulumi.export("admin_registro", admin_registro)

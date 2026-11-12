@@ -4,9 +4,10 @@ ARG TERRAFORM_VERSION=1.16.6
 ARG PULUMI_VERSION=3.272.0
 ARG GITLEAKS_VERSION=8.30.1
 ARG CHECKOV_VERSION=3.4.4
+ARG ANSIBLE_CORE_VERSION=2.20.1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl unzip git ca-certificates \
+    && apt-get install -y --no-install-recommends curl unzip git ca-certificates openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSLo /tmp/terraform.zip "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" \
@@ -23,7 +24,10 @@ ENV UV_TOOL_DIR=/opt/uv-tools \
     UV_PYTHON_INSTALL_DIR=/opt/uv-python \
     UV_LINK_MODE=copy
 
-RUN uv tool install --python 3.12 "checkov==${CHECKOV_VERSION}"
+RUN uv tool install --python 3.12 "checkov==${CHECKOV_VERSION}" \
+    && uv tool install --python 3.12 "ansible-core==${ANSIBLE_CORE_VERSION}" \
+    && ansible-galaxy collection install -p /usr/share/ansible/collections \
+       community.general:12.1.0 ansible.posix:2.1.0
 
 WORKDIR /app
 
@@ -36,6 +40,7 @@ RUN cd repo/infraestructure/tenant/pulumi && uv sync --locked
 COPY plataforma/planes.yaml repo/plataforma/planes.yaml
 COPY infraestructure/modules repo/infraestructure/modules
 COPY infraestructure/tenant repo/infraestructure/tenant
+COPY infraestructure/ansible/tenant.yml repo/infraestructure/ansible/tenant.yml
 COPY plataforma/backend/plataforma ./plataforma
 COPY plataforma/scripts ./scripts
 

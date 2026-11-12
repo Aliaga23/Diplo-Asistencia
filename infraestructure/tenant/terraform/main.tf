@@ -104,6 +104,17 @@ resource "aws_vpc_security_group_ingress_rule" "app_metricas" {
   description       = "node_exporter y metricas de la API"
 }
 
+resource "aws_vpc_security_group_ingress_rule" "app_ssh" {
+  for_each = toset(var.admin_cidrs)
+
+  security_group_id = aws_security_group.app.id
+  cidr_ipv4         = each.value
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  description       = "Ansible desde la plataforma"
+}
+
 resource "aws_vpc_security_group_egress_rule" "app_internet" {
   for_each = local.puertos_salida
 
@@ -160,6 +171,17 @@ resource "aws_vpc_security_group_ingress_rule" "bd_metricas" {
   description       = "node_exporter"
 }
 
+resource "aws_vpc_security_group_ingress_rule" "bd_ssh" {
+  for_each = local.bd_modo == "ec2" ? toset(var.admin_cidrs) : toset([])
+
+  security_group_id = aws_security_group.bd[0].id
+  cidr_ipv4         = each.value
+  ip_protocol       = "tcp"
+  from_port         = 22
+  to_port           = 22
+  description       = "Ansible desde la plataforma"
+}
+
 resource "aws_vpc_security_group_egress_rule" "bd_internet" {
   for_each = local.bd_modo == "ec2" ? local.puertos_salida : {}
 
@@ -169,6 +191,11 @@ resource "aws_vpc_security_group_egress_rule" "bd_internet" {
   from_port         = each.value.puerto
   to_port           = each.value.puerto
   description       = "Salida ${each.key}"
+}
+
+resource "aws_key_pair" "plataforma" {
+  key_name   = "${local.prefijo}-plataforma"
+  public_key = var.ssh_public_key
 }
 
 resource "random_password" "bd" {
@@ -272,7 +299,7 @@ module "bd" {
   subnet_id            = module.network.public_subnet_id
   private_ip           = local.ip_bd
   security_group_ids   = [aws_security_group.bd[0].id]
-  key_name             = null
+  key_name             = aws_key_pair.plataforma.key_name
   volume_size          = local.plan.bd.almacenamiento_gb
   associate_public_ip  = true
   iam_instance_profile = aws_iam_instance_profile.servidor.name
@@ -294,7 +321,7 @@ module "app" {
   subnet_id            = module.network.public_subnet_id
   private_ip           = local.ip_app
   security_group_ids   = [aws_security_group.app.id]
-  key_name             = null
+  key_name             = aws_key_pair.plataforma.key_name
   volume_size          = local.plan.app.disco_gb
   associate_public_ip  = true
   iam_instance_profile = aws_iam_instance_profile.servidor.name
