@@ -102,7 +102,7 @@ infraestructure/
   pulumi/           La misma infraestructura con Pulumi (Python)
   packer/           Imagen dorada de Presencia (AMI) construida con Ansible
   tenant/           Un tenant: Terraform, Pulumi, cloud-init y script de arranque
-plataforma/  Plataforma de tenants: API y worker (FastAPI), UI (Next.js), Prometheus y Grafana
+plataforma/  Plataforma de tenants: backend (FastAPI + worker), frontend (Next.js), Prometheus y Grafana
 docs/       Documentación PDF, diagramas PlantUML, capturas y archivos Excel de ejemplo
 .github/    Escaneos de seguridad de las plantillas CloudFormation
 ```
@@ -240,7 +240,7 @@ tenants creados con Pulumi.
 ### Probar el aislamiento
 
 ```bash
-docker compose exec -e PLATAFORMA_URL=http://localhost:8000 api python scripts/probar_aislamiento.py upsa unifranz
+docker compose exec -e PLATAFORMA_URL=http://localhost:8000 backend python scripts/probar_aislamiento.py upsa unifranz
 ```
 
 En la plataforma de AWS se ejecuta igual dentro de la EC2 (Session Manager), en `/opt/presencia/plataforma`.

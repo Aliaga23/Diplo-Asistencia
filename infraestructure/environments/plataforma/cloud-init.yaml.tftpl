@@ -40,7 +40,7 @@ write_files:
       PULUMI_CONFIG_PASSPHRASE=$(secreto pulumi_passphrase)
       GRAFANA_PASSWORD=$(secreto grafana_password)
       AWS_DIR=/opt/plataforma-aws
-      PUERTO_UI=80
+      PUERTO_FRONTEND=80
       VERSION=$(git -C /opt/presencia describe --always)
       ENV
 

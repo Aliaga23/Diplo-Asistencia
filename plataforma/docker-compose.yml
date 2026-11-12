@@ -1,7 +1,7 @@
 name: presencia-plataforma
 
 x-api: &api
-  image: presencia-plataforma-api
+  image: presencia-plataforma-backend
   restart: unless-stopped
   depends_on:
     db:
@@ -37,11 +37,11 @@ services:
       timeout: 3s
       retries: 10
 
-  api:
+  backend:
     <<: *api
     build:
       context: ..
-      dockerfile: plataforma/api/Dockerfile
+      dockerfile: plataforma/backend/Dockerfile
       args:
         VERSION: ${VERSION:-dev}
     ports:
@@ -52,15 +52,15 @@ services:
     pull_policy: never
     command: ["python", "-m", "plataforma.worker"]
 
-  ui:
-    build: ./ui
+  frontend:
+    build: ./frontend
     restart: unless-stopped
     depends_on:
-      - api
+      - backend
     environment:
-      API_URL: http://api:8000
+      API_URL: http://backend:8000
     ports:
-      - "${PUERTO_UI:-3010}:3000"
+      - "${PUERTO_FRONTEND:-3010}:3000"
 
   prometheus:
     image: prom/prometheus:v3.15.1

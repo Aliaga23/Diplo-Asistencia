@@ -27,7 +27,7 @@ RUN uv tool install --python 3.12 "checkov==${CHECKOV_VERSION}"
 
 WORKDIR /app
 
-COPY plataforma/api/pyproject.toml plataforma/api/uv.lock ./
+COPY plataforma/backend/pyproject.toml plataforma/backend/uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 
 COPY infraestructure/tenant/pulumi/pyproject.toml infraestructure/tenant/pulumi/uv.lock repo/infraestructure/tenant/pulumi/
@@ -36,7 +36,7 @@ RUN cd repo/infraestructure/tenant/pulumi && uv sync --locked
 COPY plataforma/planes.yaml repo/plataforma/planes.yaml
 COPY infraestructure/modules repo/infraestructure/modules
 COPY infraestructure/tenant repo/infraestructure/tenant
-COPY plataforma/api/plataforma ./plataforma
+COPY plataforma/backend/plataforma ./plataforma
 COPY plataforma/scripts ./scripts
 
 ARG VERSION=dev

@@ -1,7 +1,7 @@
 *
-!plataforma/api/pyproject.toml
-!plataforma/api/uv.lock
-!plataforma/api/plataforma
+!plataforma/backend/pyproject.toml
+!plataforma/backend/uv.lock
+!plataforma/backend/plataforma
 !plataforma/planes.yaml
 !infraestructure/modules
 !infraestructure/tenant

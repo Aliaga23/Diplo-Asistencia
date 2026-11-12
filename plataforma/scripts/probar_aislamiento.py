@@ -1,6 +1,6 @@
 """Comprueba que un tenant no puede ver ni alcanzar los datos de otro (CU-14).
 
-Uso: uv run --project plataforma/api python plataforma/scripts/probar_aislamiento.py upsa unifranz
+Uso: docker compose exec -e PLATAFORMA_URL=http://localhost:8000 backend python scripts/probar_aislamiento.py upsa unifranz
 """
 
 import os
