@@ -138,3 +138,68 @@ groups:
             type: gt
             params:
             - 5
+  - uid: base-datos-caida
+    title: Base de datos caída
+    condition: C
+    for: 2m
+    noDataState: OK
+    execErrState: Error
+    labels:
+      severidad: critica
+    annotations:
+      summary: La API del tenant {{ .Labels.tenant }} no llega a su base de datos
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: prometheus
+      model:
+        refId: A
+        expr: min by (tenant) (presencia_base_datos_arriba)
+        instant: true
+        range: false
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: A
+        conditions:
+        - evaluator:
+            type: lt
+            params:
+            - 1
+  - uid: memoria-alta
+    title: Memoria alta
+    condition: C
+    for: 5m
+    noDataState: OK
+    execErrState: Error
+    labels:
+      severidad: advertencia
+    annotations:
+      summary: Memoria sobre 90 % en {{ .Labels.tenant }} ({{ .Labels.rol }})
+    data:
+    - refId: A
+      relativeTimeRange:
+        from: 600
+        to: 0
+      datasourceUid: prometheus
+      model:
+        refId: A
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) *
+          100
+        instant: true
+        range: false
+    - refId: C
+      datasourceUid: __expr__
+      model:
+        refId: C
+        type: threshold
+        expression: A
+        conditions:
+        - evaluator:
+            type: gt
+            params:
+            - 90
