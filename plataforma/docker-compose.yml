@@ -1,11 +1,6 @@
 name: presencia-plataforma
 
 x-api: &api
-  build:
-    context: ..
-    dockerfile: plataforma/api/Dockerfile
-    args:
-      VERSION: ${VERSION:-dev}
   image: presencia-plataforma-api
   restart: unless-stopped
   depends_on:
@@ -44,11 +39,17 @@ services:
 
   api:
     <<: *api
+    build:
+      context: ..
+      dockerfile: plataforma/api/Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
     ports:
       - "127.0.0.1:8010:8000"
 
   worker:
     <<: *api
+    pull_policy: never
     command: ["python", "-m", "plataforma.worker"]
 
   ui:
