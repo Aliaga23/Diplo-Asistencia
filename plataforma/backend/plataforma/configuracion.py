@@ -67,6 +67,7 @@ def configurar(tenant: str, servidores: dict, plataforma_cidr: str, log: Log) ->
             {
                 "ANSIBLE_HOST_KEY_CHECKING": "False",
                 "ANSIBLE_NOCOLOR": "1",
+                "ANSIBLE_DEPRECATION_WARNINGS": "False",
                 "ANSIBLE_PIPELINING": "True",
                 "ANSIBLE_SSH_RETRIES": "5",
                 "ANSIBLE_PYTHON_INTERPRETER": "auto_silent",

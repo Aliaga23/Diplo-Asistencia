@@ -111,14 +111,14 @@ def main(a: str, b: str) -> None:
             f"{a}: {len(nombres_a)} estudiantes, {b}: {len(nombres_b)} estudiantes",
         )
 
-    print("\n3. Desde internet no se llega a la base de datos ni a la API interna")
+    print("\n3. Desde afuera no se llega a la base de datos ni a la API interna")
     for tenant in (ta, tb):
         for ip in ips_publicas(tenant["salidas"]["instancias"]):
-            for puerto in (5432, 8000, 22):
+            for puerto in (5432, 8000):
                 comprobar(f"{tenant['id']} {ip}:{puerto} cerrado", not puerto_abierto(ip, puerto))
 
-    print(f"\n4. Desde el servidor de {a} no se llega a los servidores de {b}")
-    destinos = [(ip, p) for ip in ips_publicas(tb["salidas"]["instancias"]) for p in (5432, 8000, 9100)]
+    print(f"\n4. Desde el servidor de {a} no se llega a los servidores de {b} (tampoco por SSH)")
+    destinos = [(ip, p) for ip in ips_publicas(tb["salidas"]["instancias"]) for p in (5432, 8000, 9100, 22)]
     respuestas = desde_servidor(ta["salidas"]["instancias"][0], destinos)
     for ip, puerto in destinos:
         estado = respuestas.get(f"{ip}:{puerto}", "sin respuesta")
