@@ -85,3 +85,6 @@ id_ed25519
 # Ansible: el inventario lo genera Terraform y las credenciales las crea el lookup password
 infraestructure/ansible/inventory/hosts.ini
 infraestructure/ansible/credentials/
+
+# Packer
+infraestructure/packer/manifest.json

@@ -1,0 +1,19 @@
+#cloud-config
+write_files:
+  - path: /etc/presencia/tenant.env
+    permissions: "0644"
+    content: |
+      TENANT='${tenant}'
+      INSTITUCION='${institucion}'
+      ROL='${rol}'
+      BD_MODO='${bd_modo}'
+      BD_HOST='${bd_host}'
+      REGION='${region}'
+      VPC_CIDR='${vpc_cidr}'
+      ADMIN_REGISTRO='${admin_registro}'
+      ADMIN_NOMBRE='${admin_nombre}'
+      ADMIN_CORREO='${admin_correo}'
+      DATOS_DEMO='${datos_demo}'
+
+runcmd:
+  - [/usr/local/sbin/presencia-arranque]

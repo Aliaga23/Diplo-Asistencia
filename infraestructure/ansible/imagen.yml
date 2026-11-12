@@ -1,0 +1,222 @@
+- name: Imagen dorada de Presencia
+  hosts: all
+  become: true
+
+  vars:
+    app_dir: /opt/presencia/app
+    api_port: 8000
+    backend_ip: 127.0.0.1
+    repo_dir: "{{ playbook_dir }}/../.."
+    paquete_fuente: /tmp/presencia-fuente.tgz
+    build_env:
+      API_URL: "http://127.0.0.1:{{ api_port }}"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      NEXT_TELEMETRY_DISABLED: "1"
+
+  tasks:
+    - name: Crear el archivo de swap
+      ansible.builtin.command: fallocate -l 2G /swapfile
+      args:
+        creates: /swapfile
+      register: swapfile
+
+    - name: Formatear y activar el swap
+      ansible.builtin.shell: chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+      when: swapfile.changed
+
+    - name: Activar el swap en cada arranque
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: /swapfile none swap sw 0 0
+
+    - name: Esperar a que cloud-init termine de preparar apt
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+
+    - name: Instalar paquetes del sistema
+      ansible.builtin.apt:
+        name:
+          - git
+          - curl
+          - unzip
+          - jq
+          - ca-certificates
+          - gnupg
+          - build-essential
+          - libpq-dev
+          - nginx
+          - postgresql
+          - prometheus-node-exporter
+        update_cache: true
+
+    - name: Dejar PostgreSQL apagado hasta saber el plan del tenant
+      ansible.builtin.systemd_service:
+        name: postgresql
+        state: stopped
+        enabled: false
+
+    - name: Descargar AWS CLI v2
+      ansible.builtin.unarchive:
+        src: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+        dest: /tmp
+        remote_src: true
+        creates: /tmp/aws/install
+
+    - name: Instalar AWS CLI v2
+      ansible.builtin.command: /tmp/aws/install
+      args:
+        creates: /usr/local/bin/aws
+
+    - name: Descargar el instalador de uv
+      ansible.builtin.get_url:
+        url: https://astral.sh/uv/install.sh
+        dest: /tmp/uv-install.sh
+        mode: "0755"
+
+    - name: Instalar uv
+      ansible.builtin.command: sh /tmp/uv-install.sh
+      environment:
+        UV_INSTALL_DIR: /usr/local/bin
+      args:
+        creates: /usr/local/bin/uv
+
+    - name: Descargar el instalador de NodeSource
+      ansible.builtin.get_url:
+        url: https://deb.nodesource.com/setup_24.x
+        dest: /tmp/nodesource.sh
+        mode: "0755"
+
+    - name: Agregar el repositorio de Node.js 24
+      ansible.builtin.command: bash /tmp/nodesource.sh
+      args:
+        creates: /usr/share/keyrings/nodesource.gpg
+
+    - name: Instalar Node.js
+      ansible.builtin.apt:
+        name: nodejs
+
+    - name: Habilitar pnpm con corepack
+      ansible.builtin.command: corepack enable
+      args:
+        creates: /usr/bin/pnpm
+
+    - name: Leer la version del repositorio
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command: git -c safe.directory=* -C {{ repo_dir }} describe --always --dirty
+      register: version_repo
+      changed_when: false
+
+    - name: Empaquetar backend y frontend desde el repositorio
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command: >-
+        tar -czf {{ paquete_fuente }} -C {{ repo_dir }}
+        --exclude=node_modules --exclude=.venv --exclude=.next --exclude=samples
+        --exclude=__pycache__ --exclude=.pytest_cache --exclude=.ruff_cache
+        --exclude=.env --exclude=*.db
+        backend frontend
+      changed_when: true
+
+    - name: Crear la carpeta de la app
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Copiar el codigo a la imagen
+      ansible.builtin.unarchive:
+        src: "{{ paquete_fuente }}"
+        dest: "{{ app_dir }}"
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Guardar la version de la app
+      ansible.builtin.copy:
+        dest: /opt/presencia/VERSION
+        content: "{{ version_repo.stdout }}\n"
+        mode: "0644"
+
+    - name: Instalar dependencias de Python
+      become_user: ubuntu
+      ansible.builtin.command: uv sync --locked --no-dev
+      args:
+        chdir: "{{ app_dir }}/backend"
+      changed_when: true
+
+    - name: Compilar Next.js
+      become_user: ubuntu
+      ansible.builtin.shell: >-
+        pnpm install --frozen-lockfile && pnpm build
+        && cp -r public .next/standalone/
+        && mkdir -p .next/standalone/.next
+        && cp -r .next/static .next/standalone/.next/
+      args:
+        chdir: "{{ app_dir }}/frontend"
+      environment: "{{ build_env }}"
+      async: 1800
+      poll: 15
+      changed_when: true
+
+    - name: Escribir las variables del frontend
+      ansible.builtin.template:
+        src: templates/presencia-frontend.env.j2
+        dest: /etc/presencia-frontend.env
+        mode: "0644"
+
+    - name: Instalar los servicios de la app
+      ansible.builtin.template:
+        src: "templates/{{ item }}.service.j2"
+        dest: "/etc/systemd/system/{{ item }}.service"
+        mode: "0644"
+      loop:
+        - presencia-backend
+        - presencia-frontend
+
+    - name: Configurar los sitios de Nginx
+      ansible.builtin.template:
+        src: "templates/{{ item.src }}"
+        dest: "/etc/nginx/sites-available/{{ item.dest }}"
+        mode: "0644"
+      loop:
+        - { src: nginx-presencia.conf.j2, dest: presencia }
+        - { src: nginx-metricas.conf.j2, dest: metricas }
+
+    - name: Activar los sitios
+      ansible.builtin.file:
+        src: "/etc/nginx/sites-available/{{ item }}"
+        dest: "/etc/nginx/sites-enabled/{{ item }}"
+        state: link
+      loop:
+        - presencia
+        - metricas
+
+    - name: Quitar el sitio por defecto
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Validar Nginx
+      ansible.builtin.command: nginx -t
+      changed_when: false
+
+    - name: Instalar el script de arranque del tenant
+      ansible.builtin.copy:
+        src: "{{ repo_dir }}/infraestructure/tenant/scripts/arranque.sh"
+        dest: /usr/local/sbin/presencia-arranque
+        mode: "0755"
+
+    - name: Borrar instaladores temporales
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/aws
+        - /tmp/uv-install.sh
+        - /tmp/nodesource.sh
+
+    - name: Limpiar la cache de apt
+      ansible.builtin.command: apt-get clean
+      changed_when: true

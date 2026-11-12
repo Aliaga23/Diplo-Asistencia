@@ -1,0 +1,13 @@
+server {
+  listen 9101;
+  server_name _;
+  server_tokens off;
+
+  location = /metrics {
+    proxy_pass http://127.0.0.1:{{ api_port }}/metrics;
+  }
+
+  location / {
+    return 404;
+  }
+}
