@@ -10,10 +10,24 @@ data "aws_vpc" "defecto" {
   default = true
 }
 
+data "aws_ec2_instance_type_offerings" "zonas" {
+  location_type = "availability-zone"
+
+  filter {
+    name   = "instance-type"
+    values = [var.instance_type]
+  }
+}
+
 data "aws_subnets" "defecto" {
   filter {
     name   = "vpc-id"
     values = [data.aws_vpc.defecto.id]
+  }
+
+  filter {
+    name   = "availability-zone"
+    values = data.aws_ec2_instance_type_offerings.zonas.locations
   }
 
   filter {

@@ -1,4 +1,9 @@
 #cloud-config
+swap:
+  filename: /swapfile
+  size: 4G
+  maxsize: 4G
+
 package_update: true
 packages:
   - docker.io

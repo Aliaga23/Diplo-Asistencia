@@ -17,7 +17,7 @@ variable "expected_account_id" {
 variable "instance_type" {
   description = "Tipo de instancia de la plataforma (compila las imagenes Docker)."
   type        = string
-  default     = "t3.medium"
+  default     = "t3.small"
 }
 
 variable "volume_size" {
