@@ -382,11 +382,27 @@ def contenido() -> list:
             "aplicación responda y marca el tenant como activo."
         ),
         figura(DIAGRAMAS / "plataforma-secuencia-crear.png", "Secuencia de creación de un tenant.", alto_max=17 * cm),
+        p("3.4. Función de cada herramienta", "h2"),
+        tabla(
+            "Herramientas y su función en la arquitectura",
+            [
+                ["Herramienta", "Función en el proyecto"],
+                ["Terraform", "Motor principal: crea la red, la seguridad, los secretos, los servidores, la base y la IP de cada tenant, y la propia plataforma."],
+                ["Pulumi", "Segundo motor, en Python: crea exactamente los mismos recursos que Terraform para comparar ambos enfoques."],
+                ["Packer", "Construye la imagen dorada (AMI) de la que arrancan todos los servidores de los tenants."],
+                ["Ansible", "Dentro de Packer instala y compila Presencia en la imagen; después de crear cada tenant configura sus servidores: firewall, SSH, usuario de operación, actualizaciones y verificación de servicios."],
+                ["cloud-init", "Configuración inicial al primer arranque: deja los datos del tenant y ejecuta el script que lee los secretos, prepara la base y enciende la aplicación."],
+                ["Grafana y Prometheus", "Recolección de métricas, tablero de salud por tenant y por entorno, y alertas operativas."],
+                ["gitleaks y checkov", "Escaneo de secretos y de buenas prácticas antes de cada aprovisionamiento y en cada push del repositorio."],
+                ["Docker Compose", "Ejecuta los servicios de la plataforma en su servidor."],
+            ],
+            [0.24, 0.76],
+        ),
         PageBreak(),
     ]
 
     # 4. Catálogo de planes
-    filas = [["Plan", "Servidor de la aplicación", "Base de datos", "Estudiantes", "Costo por día"]]
+    filas = [["Plan", "Servidor de la aplicación", "Base de datos", "Alumnos", "Costo por día"]]
     for plan in PLANES.values():
         app = plan["app"]
         filas.append(
@@ -411,11 +427,11 @@ def contenido() -> list:
             [
                 ["Elemento", "Detalle"],
                 ["Red", "VPC propia, subred, puerta a internet y tabla de rutas."],
-                ["Firewall", "Web pública en el puerto 80; métricas solo para la plataforma; sin SSH."],
+                ["Firewall", "Web pública en el puerto 80; SSH y métricas solo para la IP de la plataforma."],
                 ["Dirección fija", "IP elástica: la URL no cambia al suspender y reanudar."],
                 ["Credenciales", "Contraseña de base y clave JWT únicas, cifradas en SSM Parameter Store."],
                 ["Monitoreo", "node_exporter y métricas de la API, visibles en Grafana."],
-                ["Acceso de soporte", "AWS Systems Manager Session Manager, sin puertos abiertos."],
+                ["Acceso de soporte", "Session Manager de AWS y el usuario «operador» creado por Ansible."],
             ],
             [0.25, 0.75],
         ),
@@ -455,12 +471,53 @@ def contenido() -> list:
             "el script de arranque, que lee las contraseñas desde SSM con el rol IAM del servidor; ninguna "
             "credencial viaja en los datos de usuario."
         ),
-        p("5.5. Despliegue de la plataforma", "h2"),
+        p("5.5. Configuración posterior con Ansible", "h2"),
+        p(
+            f"Cuando la aplicación del tenant responde, el worker ejecuta el playbook {mono('tenant.yml')} sobre "
+            "cada servidor del tenant. La plataforma tiene su propio par de claves SSH: la clave pública se "
+            "instala al crear los servidores y el puerto 22 solo se abre para la IP de la plataforma. El "
+            "resultado de Ansible queda en el log de la operación."
+        ),
+        tabla(
+            "Tareas de la configuración posterior",
+            [
+                ["Tarea", "Detalle"],
+                ["Identidad", "Nombre presencia-&lt;tenant&gt;-&lt;rol&gt; y zona horaria America/La_Paz."],
+                ["Usuario de operación", "«operador», sin contraseña, con sudo limitado a revisar y reiniciar los servicios."],
+                ["SSH", "Sin contraseñas ni acceso de root, máximo 3 intentos y solo usuarios autorizados."],
+                ["Actualizaciones", "Actualizaciones de seguridad automáticas."],
+                ["Firewall (ufw)", "SSH y métricas solo desde la plataforma; web pública; PostgreSQL solo dentro de la VPC; el resto denegado."],
+                ["Verificación", "Backend, frontend y Nginx corriendo; PostgreSQL aceptando conexiones."],
+            ],
+            [0.28, 0.72],
+        ),
+        figura(SHOTS / "plataforma-ansible.png", "Resultado de Ansible en el log de creación de un tenant Estándar."),
+        p("5.6. Despliegue de la plataforma", "h2"),
         p(
             f"El ambiente {mono('infraestructure/environments/plataforma')} crea con Terraform la instancia de "
             "la plataforma, su firewall (solo puerto 80), su IP elástica, sus secretos y un rol IAM con los "
             "permisos mínimos para aprovisionar tenants. Su cloud-init instala Docker, clona el repositorio y "
             "levanta todos los servicios."
+        ),
+        p("5.7. Almacenamiento y protección del estado", "h2"),
+        p(
+            "El estado de los motores registra qué recursos existen en AWS; sin él no se podría actualizar, "
+            "reintentar ni eliminar un tenant sin duplicar recursos. Como contiene datos sensibles, se guarda "
+            "fuera del repositorio y protegido de la siguiente forma:"
+        ),
+        tabla(
+            "Estado de los motores de infraestructura",
+            [
+                ["Aspecto", "Implementación"],
+                ["Ubicación", "Bucket S3 presencia-tfstate-aliaga23: tenants/&lt;id&gt;/ para Terraform y pulumi/ para Pulumi."],
+                ["Cifrado", "Cifrado del lado del servidor (AES-256) para todos los objetos."],
+                ["Acceso", "Acceso público bloqueado; solo el rol IAM de la plataforma y el administrador de la cuenta lo leen."],
+                ["Historial", "Versionado del bucket activado: cada cambio de estado conserva la versión anterior."],
+                ["Bloqueo", "Bloqueo nativo de S3 (use_lockfile) para que dos operaciones no modifiquen el mismo tenant."],
+                ["Secretos en Pulumi", "Cifrados con una frase de paso guardada en SSM Parameter Store."],
+                ["Borrado accidental", "El bucket tiene prevent_destroy en su definición de Terraform."],
+            ],
+            [0.25, 0.75],
         ),
         tabla(
             "Comandos principales",
@@ -490,7 +547,8 @@ def contenido() -> list:
                 ["Permisos", "Rol IAM por tenant que solo lee sus propios parámetros."],
                 ["Escaneo previo", "gitleaks detiene el despliegue si encuentra secretos; checkov advierte."],
                 ["Repositorio", "gitleaks revisa todo el historial en cada push y pull request."],
-                ["Servidores", "IMDSv2 obligatorio, discos cifrados y acceso solo por Session Manager."],
+                ["Servidores", "IMDSv2 obligatorio, discos cifrados, firewall ufw y SSH solo desde la plataforma."],
+                ["Errores sin secretos", "Los motores ocultan los valores sensibles; gitleaks enmascara lo que detecta; los mensajes al usuario no incluyen credenciales."],
             ],
             [0.25, 0.75],
         ),
@@ -498,7 +556,7 @@ def contenido() -> list:
             "El aislamiento se verifica con un script automático que intenta, desde un tenant, entrar al otro "
             "con sus credenciales y con su token de sesión, alcanzar la base de datos y la API interna desde "
             "internet y conectarse desde su servidor a los puertos del otro tenant. En la ejecución registrada "
-            "se aprobaron las 21 comprobaciones."
+            "se aprobaron las 20 comprobaciones."
         ),
         PageBreak(),
     ]
@@ -509,7 +567,9 @@ def contenido() -> list:
         p(
             "Prometheus descubre los servidores encendidos por sus etiquetas de AWS, de modo que los tenants "
             "nuevos aparecen solos y los suspendidos no generan falsas alarmas. Grafana muestra el tablero "
-            "«Salud de los tenants», con filtros por entorno y por tenant, y está publicado en "
+            "«Salud de los tenants», con filtros por entorno y por tenant: disponibilidad de cada servidor, "
+            "estado de la base de datos, CPU, memoria, disco, peticiones, errores del backend y latencia. Está "
+            "publicado en "
             f"{mono(URL_PLATAFORMA + '/grafana/d/salud-tenants')}."
         ),
         tabla(
@@ -520,6 +580,8 @@ def contenido() -> list:
                 ["CPU alta", "Uso de procesador mayor a 85 % durante 5 minutos."],
                 ["Disco casi lleno", "Uso de disco mayor a 85 % durante 5 minutos."],
                 ["Errores 5xx", "Más del 5 % de las peticiones terminan en error durante 5 minutos."],
+                ["Base de datos caída", "La API de un tenant no llega a su base durante 2 minutos."],
+                ["Memoria alta", "Uso de memoria mayor a 90 % durante 5 minutos."],
             ],
             [0.3, 0.7],
         ),
@@ -590,6 +652,11 @@ def contenido() -> list:
         ),
         figura(SHOTS / "plataforma-detalle.png", "Detalle de un tenant activo."),
         figura(SHOTS / "tenant-login.png", "Inicio de sesión del tenant con la marca de su institución."),
+        p(
+            "Dentro de su Presencia, el administrador del tenant ve en el panel el <b>estado de sus "
+            "servicios</b>: si la API y la base de datos responden, la latencia de la base y la versión instalada."
+        ),
+        figura(SHOTS / "tenant-panel.png", "Panel del administrador del tenant con el estado de sus servicios."),
         p("8.7. Búsqueda y edición", "h2"),
         p(
             "<b>Instituciones</b> lista todos los tenants con búsqueda por nombre o identificador y filtros por "
@@ -644,10 +711,12 @@ def contenido() -> list:
                 ["Suspender y reanudar", "Servidores detenidos; vuelve en la misma URL con sus datos", "Aprobado"],
                 ["Salud en Grafana por tenant", "Métricas de CPU, memoria, disco, peticiones y latencia", "Aprobado"],
                 ["Alertas", "Backend detenido: alerta «Tenant caído» con tenant y hora", "Aprobado"],
-                ["Aislamiento entre tenants", "Script de 21 comprobaciones", "21 de 21"],
+                ["Aislamiento entre tenants", "Script de 20 comprobaciones, incluido SSH entre tenants", "20 de 20"],
                 ["Reintento sin duplicar", "Falla provocada y reintento: solo 6 recursos faltantes, misma VPC", "Aprobado"],
                 ["Eliminar tenant", "23 a 30 recursos destruidos y estado borrado", "Aprobado"],
                 ["Escaneo de secretos", "gitleaks sobre plantillas, configuración e historial", "Sin hallazgos"],
+                ["Configuración con Ansible", "Playbook posterior sobre cada servidor del tenant", "failed=0 en todos"],
+                ["Estado de la base de datos", "Panel y alerta en Grafana; tarjeta en el panel del tenant", "Aprobado"],
             ],
             [0.3, 0.52, 0.18],
         ),
