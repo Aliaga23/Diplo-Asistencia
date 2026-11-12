@@ -1,0 +1,31 @@
+@startuml plataforma-secuencia-crear
+!include _tema.iuml
+title Creación de un tenant
+skinparam maxMessageSize 170
+
+actor "Administrador" as admin
+participant "Consola y API" as api
+participant "Worker" as worker
+participant "Terraform\no Pulumi" as motor
+participant "AWS" as aws
+participant "EC2 del tenant" as ec2
+
+admin -> api : formulario: institución, plan y motor
+api -> api : registra el tenant «creando» y encola la operación
+api --> admin : pantalla del tenant con el log en vivo
+worker -> api : toma la operación (FOR UPDATE SKIP LOCKED)
+worker -> aws : busca la última AMI con etiqueta Imagen=presencia
+worker -> worker : gitleaks (secretos) y checkov (buenas prácticas)
+alt hay secretos en las plantillas
+  worker -> api : operación «fallida» con mensaje comprensible
+end
+worker -> motor : apply / up con el plan elegido
+motor -> aws : VPC, grupos de seguridad, secretos SSM, rol IAM,\nEC2, base (EC2 o RDS) e IP elástica
+motor -> aws : guarda el estado en S3
+aws -> ec2 : arranca desde la AMI dorada
+ec2 -> aws : lee sus secretos de SSM
+ec2 -> ec2 : .env, migraciones, admin y marca\nde la institución, servicios encendidos
+worker -> ec2 : espera a que /login responda 200
+worker -> api : tenant «activo», URL y versiones
+api --> admin : URL y credenciales del administrador del tenant
+@enduml

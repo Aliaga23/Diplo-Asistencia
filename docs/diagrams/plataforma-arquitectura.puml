@@ -1,0 +1,57 @@
+@startuml plataforma-arquitectura
+!include _tema.iuml
+title Arquitectura de la plataforma de tenants
+left to right direction
+
+actor "Administrador\nde la plataforma" as admin
+actor "Usuarios de la\ninstitución" as usuarios
+actor "Docente" as docente
+
+cloud "AWS us-east-1" as aws {
+  rectangle "EC2 de la plataforma (t3.small, Docker Compose, rol IAM)" as pc {
+    component "Consola Next.js\n:80" as ui
+    component "API FastAPI" as api
+    component "Worker\ngitleaks · checkov\nTerraform · Pulumi" as worker
+    database "PostgreSQL\ntenants · operaciones · logs" as pdb
+    component "Prometheus\nec2_sd por etiqueta" as prom
+    component "Grafana\n/grafana" as grafana
+  }
+  storage "S3\nestado de Terraform\ny de Pulumi" as s3
+  storage "SSM Parameter Store\nsecretos" as ssm
+  rectangle "Tenant A (VPC propia)" as ta {
+    node "EC2 app\nNext.js + FastAPI\n(IP elástica)" as appa
+    database "Base del tenant\nlocal | EC2 | RDS" as bda
+  }
+  rectangle "Tenant B (VPC propia)" as tb {
+    node "EC2 app" as appb
+    database "Base del tenant" as bdb
+  }
+}
+
+rectangle "Construcción de la imagen (WSL)" as imagen {
+  component "Packer" as packer
+  component "Ansible\nimagen.yml" as ansible
+  artifact "AMI dorada\nPresencia + Nginx +\nPostgreSQL + node_exporter" as ami
+}
+
+admin --> ui : http://IP
+docente --> grafana : /grafana
+ui --> api : REST
+api --> pdb
+worker --> pdb : toma operaciones
+worker --> s3 : estado
+worker --> ta : crea / suspende / elimina
+worker --> tb
+packer --> ansible
+ansible --> ami
+ami ..> appa : arranque + cloud-init
+ami ..> appb
+appa --> ssm : lee secretos
+appa --> bda : 5432 solo desde la app
+appb --> bdb
+prom --> appa : :9100 :9101
+prom --> appb
+grafana --> prom
+grafana --> pdb : eventos
+usuarios --> appa : http://IP
+@enduml
