@@ -1,10 +1,12 @@
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_client import Gauge
 from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy.exc import IntegrityError
 
 from app.api.v1 import api_router
+from app.api.v1.sistema import estado_base_datos
 from app.core.config import get_settings
 from app.core.timeutils import now_local
 
@@ -19,6 +21,12 @@ TAGS = [
     {"name": "Importación Excel", "description": "Carga masiva de estudiantes y horarios."},
     {"name": "Panel y reportes", "description": "Indicadores y exportación."},
 ]
+
+
+BASE_DATOS_ARRIBA = Gauge(
+    "presencia_base_datos_arriba", "1 si la API llega a la base de datos del tenant, 0 si no"
+)
+BASE_DATOS_ARRIBA.set_function(lambda: 1.0 if estado_base_datos()[0] else 0.0)
 
 
 def create_app() -> FastAPI:

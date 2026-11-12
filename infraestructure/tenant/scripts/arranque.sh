@@ -73,7 +73,7 @@ configurar_app() {
   cat > "$APP_DIR/backend/.env" <<ENV
 ENVIRONMENT=production
 APP_NAME=Presencia ${INSTITUCION}
-DATABASE_URL=postgresql+psycopg://${BD_USUARIO}:${BD_PASSWORD}@${bd_host}:5432/${BD_NOMBRE}
+DATABASE_URL=postgresql+psycopg://${BD_USUARIO}:${BD_PASSWORD}@${bd_host}:5432/${BD_NOMBRE}?connect_timeout=3
 JWT_SECRET=$(secreto jwt_secret)
 DEFAULT_PASSWORD=$(secreto admin_password)
 ADMIN_REGISTRATION=${ADMIN_REGISTRO}

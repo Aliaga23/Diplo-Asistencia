@@ -17,6 +17,7 @@ import { useCourse } from "@/components/app-shell/course-context"
 import { PageHeader } from "@/components/common/page-header"
 import { KpiCard } from "@/components/common/kpi-card"
 import { AttendanceChart } from "@/components/dashboard/attendance-chart"
+import { EstadoServicios } from "@/components/dashboard/estado-servicios"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -79,6 +80,8 @@ export function DashboardView() {
           </>
         }
       />
+
+      <EstadoServicios />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
