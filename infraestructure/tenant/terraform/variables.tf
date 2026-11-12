@@ -60,6 +60,13 @@ variable "admin_correo" {
   type        = string
 }
 
+variable "contrasena_inicial" {
+  description = "Contraseña común de las cuentas del tenant (DEFAULT_PASSWORD de Presencia)."
+  type        = string
+  default     = "admin1234!"
+  sensitive   = true
+}
+
 variable "datos_demo" {
   description = "Carga estudiantes y asistencia de ejemplo."
   type        = bool

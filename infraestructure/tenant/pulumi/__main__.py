@@ -42,6 +42,7 @@ admin_nombre = config.require("adminNombre")
 admin_correo = config.require("adminCorreo")
 datos_demo = config.get_bool("datosDemo") or False
 ami_config = config.get("amiId") or ""
+contrasena_inicial = config.get_secret("contrasenaInicial") or "admin1234!"
 
 plan = CATALOGO[plan_id]
 bd_modo = plan["bd"]["modo"]
@@ -228,16 +229,19 @@ if bd_modo == "ec2":
 # Secretos del tenant en SSM: los servidores los leen al arrancar
 pw_bd = random.RandomPassword("bd", length=32, special=False)
 pw_jwt = random.RandomPassword("jwt", length=64, special=False)
-pw_admin = random.RandomPassword("admin", length=16, special=False)
 secretos = [
     aws.ssm.Parameter(
         clave,
         name=f"/presencia/tenants/{tenant}/{clave}",
         type="SecureString",
-        value=valor.result,
+        value=valor,
         opts=opts,
     )
-    for clave, valor in {"bd_password": pw_bd, "jwt_secret": pw_jwt, "admin_password": pw_admin}.items()
+    for clave, valor in {
+        "bd_password": pw_bd.result,
+        "jwt_secret": pw_jwt.result,
+        "admin_password": contrasena_inicial,
+    }.items()
 ]
 
 rol = aws.iam.Role(

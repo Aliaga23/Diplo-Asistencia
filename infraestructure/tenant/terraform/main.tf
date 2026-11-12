@@ -181,16 +181,11 @@ resource "random_password" "jwt" {
   special = false
 }
 
-resource "random_password" "admin" {
-  length  = 16
-  special = false
-}
-
 resource "aws_ssm_parameter" "secretos" {
   for_each = {
     bd_password    = random_password.bd.result
     jwt_secret     = random_password.jwt.result
-    admin_password = random_password.admin.result
+    admin_password = var.contrasena_inicial
   }
 
   name  = "/presencia/tenants/${var.tenant}/${each.key}"
